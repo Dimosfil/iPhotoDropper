@@ -11,3 +11,4 @@ tools/deploy/ftp.local.json
 **/bin/
 **/obj/
 TestResults/
+artifacts/

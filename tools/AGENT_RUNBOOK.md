@@ -29,6 +29,18 @@ dotnet test .\iPhotoDropper.sln
 dotnet build .\iPhotoDropper.sln
 ```
 
+## Installer
+
+```powershell
+.\tools\package\build-installer.ps1 -Version 0.1.0
+```
+
+Output:
+
+```text
+artifacts\installer\iPhotoDropper-Setup-0.1.0.exe
+```
+
 ## Smoke Check
 
 ```powershell

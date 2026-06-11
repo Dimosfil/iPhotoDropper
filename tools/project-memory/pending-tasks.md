@@ -117,3 +117,9 @@ Launch note:
 - [x] Import into the selected destination folder directly instead of creating date/month subfolders by default.
 - [x] Use actual destination files for duplicate skips so previous subfolder imports do not block a flat retry.
 - [x] Verify build/tests after the flat import change.
+
+## Windows installer
+
+- [x] Add an Inno Setup installer script for the WinUI desktop app.
+- [x] Add a project-local packaging command that publishes the app and compiles the installer.
+- [x] Verify the installer build with local Inno Setup.
