@@ -6,3 +6,8 @@ tools/project-memory/*.db-*
 tools/summary/*.tmp
 tools/deploy/ftp.local.json
 *.log
+
+# .NET build outputs
+**/bin/
+**/obj/
+TestResults/

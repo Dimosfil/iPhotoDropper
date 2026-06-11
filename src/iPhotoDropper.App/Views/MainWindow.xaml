@@ -1,0 +1,341 @@
+<Window
+    x:Class="iPhotoDropper.App.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid
+        x:Name="Root"
+        Padding="20"
+        RowSpacing="16"
+        Background="#FFF5F5F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Spacing="4">
+                <TextBlock
+                    Text="iPhotoDropper"
+                    FontSize="30"
+                    FontWeight="SemiBold"
+                    Foreground="#FF1D1D1F" />
+                <TextBlock
+                    Text="Импорт фото и видео с iPhone"
+                    FontSize="14"
+                    Foreground="#FF6E6E73" />
+            </StackPanel>
+
+            <Border
+                Grid.Column="1"
+                Padding="14,8"
+                Background="White"
+                BorderBrush="#1F000000"
+                BorderThickness="1"
+                CornerRadius="8"
+                VerticalAlignment="Center">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Состояние" FontSize="11" Foreground="#FF6E6E73" />
+                    <TextBlock x:Name="DeviceStatusText" FontSize="14" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="*" MinWidth="420" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                Background="White"
+                BorderBrush="#1F000000"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Источник" FontSize="12" Foreground="#FF6E6E73" />
+                        <TextBlock Text="iPhone" FontSize="22" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
+                    </StackPanel>
+
+                    <TextBlock
+                        x:Name="DeviceDetailsTextBlock"
+                        Grid.Row="1"
+                        Foreground="#FF1D1D1F"
+                        TextWrapping="Wrap" />
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="RefreshButton"
+                            Content="Обновить"
+                            Click="OnRefreshClick"
+                            Background="#FFE8E8ED"
+                            Foreground="#FF1D1D1F"
+                            BorderThickness="0"
+                            CornerRadius="8"
+                            Padding="14,8"
+                            MinHeight="36" />
+                        <Button
+                            x:Name="ScanButton"
+                            Content="Показать медиа"
+                            Click="OnScanClick"
+                            Background="#FF007AFF"
+                            Foreground="White"
+                            BorderThickness="0"
+                            CornerRadius="8"
+                            Padding="16,8"
+                            MinHeight="36" />
+                    </StackPanel>
+
+                    <TextBox
+                        x:Name="MediaFilesTextBox"
+                        Grid.Row="3"
+                        AcceptsReturn="True"
+                        Background="#FFFDFDFE"
+                        BorderBrush="#1A000000"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        FontFamily="Cascadia Mono, Consolas"
+                        FontSize="13"
+                        Height="360"
+                        IsReadOnly="True"
+                        Padding="12"
+                        TextWrapping="NoWrap"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                </Grid>
+            </Border>
+
+            <Border
+                Grid.Column="1"
+                Background="White"
+                BorderBrush="#1F000000"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Назначение" FontSize="12" Foreground="#FF6E6E73" />
+                        <TextBlock Text="Куда копируем" FontSize="22" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
+                    </StackPanel>
+
+                    <TextBlock
+                        x:Name="DestinationTextBlock"
+                        Grid.Row="1"
+                        Foreground="#FF1D1D1F"
+                        TextWrapping="Wrap" />
+
+                    <Grid Grid.Row="2" RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="BrowseButton"
+                                Content="Выбрать папку"
+                                Click="OnBrowseDestination"
+                                Background="#FFE8E8ED"
+                                Foreground="#FF1D1D1F"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="14,8"
+                                MinHeight="36" />
+                            <Button
+                                x:Name="ImportButton"
+                                Content="Старт"
+                                Click="OnImportClick"
+                                Background="#FF007AFF"
+                                Foreground="White"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="16,8"
+                                MinHeight="36" />
+                            <Button
+                                x:Name="PauseButton"
+                                Content="Пауза"
+                                Click="OnPauseClick"
+                                Background="#FFE8E8ED"
+                                Foreground="#FF1D1D1F"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="14,8"
+                                MinHeight="36" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="ResumeButton"
+                                Content="Продолжить"
+                                Click="OnResumeClick"
+                                Background="#FFE8E8ED"
+                                Foreground="#FF1D1D1F"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="14,8"
+                                MinHeight="36" />
+                            <Button
+                                x:Name="CancelButton"
+                                Content="Отмена"
+                                Click="OnCancelClick"
+                                Background="#FFE8E8ED"
+                                Foreground="#FF1D1D1F"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="14,8"
+                                MinHeight="36" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="3" RowSpacing="6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            x:Name="OverallProgressLabelTextBlock"
+                            FontWeight="SemiBold"
+                            Foreground="#FF1D1D1F"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="OverallProgressBarTextBlock"
+                            Grid.Row="1"
+                            FontFamily="Cascadia Mono, Consolas"
+                            FontSize="15"
+                            Foreground="#FF007AFF" />
+                        <TextBlock
+                            x:Name="CurrentFileProgressLabelTextBlock"
+                            Grid.Row="2"
+                            Margin="0,8,0,0"
+                            FontWeight="SemiBold"
+                            Foreground="#FF1D1D1F"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="CurrentFileProgressBarTextBlock"
+                            Grid.Row="3"
+                            FontFamily="Cascadia Mono, Consolas"
+                            FontSize="15"
+                            Foreground="#FF007AFF" />
+                        <TextBlock
+                            x:Name="CurrentFileProgressDetailsTextBlock"
+                            Grid.Row="4"
+                            FontSize="12"
+                            Foreground="#FF6E6E73"
+                            TextWrapping="Wrap" />
+                    </Grid>
+
+                    <TextBox
+                        x:Name="DestinationFilesTextBox"
+                        Grid.Row="4"
+                        AcceptsReturn="True"
+                        Background="#FFFDFDFE"
+                        BorderBrush="#1A000000"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        FontFamily="Cascadia Mono, Consolas"
+                        FontSize="13"
+                        Height="280"
+                        IsReadOnly="True"
+                        Padding="12"
+                        TextWrapping="NoWrap"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border
+            Grid.Row="2"
+            Background="White"
+            BorderBrush="#1F000000"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            x:Name="CurrentFileTextBlock"
+                            FontWeight="SemiBold"
+                            Foreground="#FF1D1D1F"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="ProgressTextBlock"
+                            Foreground="#FF6E6E73"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBlock
+                        x:Name="ProgressBarTextBlock"
+                        Grid.Column="1"
+                        FontFamily="Cascadia Mono, Consolas"
+                        FontSize="12"
+                        Foreground="#FF6E6E73" />
+                </Grid>
+
+                <TextBlock
+                    x:Name="LastReportTextBlock"
+                    Grid.Row="1"
+                    Foreground="#FF1D1D1F"
+                    TextWrapping="Wrap" />
+
+                <TextBlock
+                    Grid.Row="2"
+                    Text="Журнал сканирования и копирования"
+                    FontWeight="SemiBold"
+                    Foreground="#FF1D1D1F" />
+
+                <TextBox
+                    x:Name="ScanLogTextBox"
+                    Grid.Row="3"
+                    AcceptsReturn="True"
+                    Background="#FFFDFDFE"
+                    BorderBrush="#1A000000"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    FontFamily="Cascadia Mono, Consolas"
+                    FontSize="13"
+                    Height="150"
+                    IsReadOnly="True"
+                    Padding="12"
+                    TextWrapping="NoWrap"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
