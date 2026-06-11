@@ -84,6 +84,22 @@ public sealed class TransferServiceSmokeTests
         Assert.Equal(0, secondResult.CopiedCount);
         Assert.Equal(2, secondResult.SkippedCount);
         Assert.Equal(0, secondResult.FailedCount);
+
+        var secondDestinationRoot = workspace.CreateDirectory("imports-second");
+        var thirdResult = await service.ImportAsync(device, scanned, new TransferOptions
+        {
+            DestinationFolder = secondDestinationRoot,
+            CopyOnlyNew = true,
+            IncludePhotos = true,
+            IncludeVideos = true,
+            OrganizeByDateFolders = false,
+            RetryBaseDelayMs = 1
+        });
+
+        Assert.Equal(2, thirdResult.CopiedCount);
+        Assert.Equal(0, thirdResult.SkippedCount);
+        Assert.Equal(0, thirdResult.FailedCount);
+        Assert.Equal(2, Directory.EnumerateFiles(secondDestinationRoot, "*.*", SearchOption.AllDirectories).Count());
     }
 
     [Fact]
@@ -146,6 +162,38 @@ public sealed class TransferServiceSmokeTests
         Assert.Equal(0, replacedResult.SkippedCount);
         Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(destinationPath));
         Assert.Empty(Directory.EnumerateFiles(destinationRoot, "* (1).*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task DefaultImportKeepsFilesInSelectedDestinationFolder()
+    {
+        using var workspace = TempWorkspace.Create();
+        var destinationRoot = workspace.CreateDirectory("flat-imports");
+        var statePath = Path.Combine(workspace.Root, "state", "transfer-state.json");
+        var device = new DeviceInfo("mock-device", "Mock iPhone", isConnected: true, isTrusted: true);
+        var item = new MediaItem
+        {
+            DeviceId = device.DeviceId,
+            Id = "dated-photo",
+            FileName = "IMG_2026.jpg",
+            Kind = MediaKind.Photo,
+            SizeBytes = 3,
+            CapturedAt = new DateTimeOffset(2026, 3, 4, 12, 0, 0, TimeSpan.Zero)
+        };
+
+        var service = CreateTransferService(new SingleItemPhotoLibraryService(item, new byte[] { 1, 2, 3 }), statePath);
+        var result = await service.ImportAsync(device, new[] { item }, new TransferOptions
+        {
+            DestinationFolder = destinationRoot,
+            IncludePhotos = true,
+            IncludeVideos = true,
+            RetryBaseDelayMs = 1
+        });
+
+        Assert.Equal(1, result.CopiedCount);
+        var copiedPath = result.Items.Single().DestinationPath!;
+        Assert.Equal(destinationRoot, Path.GetDirectoryName(copiedPath));
+        Assert.Empty(Directory.EnumerateDirectories(destinationRoot));
     }
 
     [Fact]
@@ -216,6 +264,29 @@ public sealed class TransferServiceSmokeTests
         }
 
         Assert.Fail("Condition was not reached before timeout.");
+    }
+
+    private sealed class SingleItemPhotoLibraryService : IPhotoLibraryService
+    {
+        private readonly MediaItem _item;
+        private readonly byte[] _bytes;
+
+        public SingleItemPhotoLibraryService(MediaItem item, byte[] bytes)
+        {
+            _item = item;
+            _bytes = bytes;
+        }
+
+        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<MediaItem>>(new[] { _item });
+        }
+
+        public Task<Stream> OpenMediaStreamAsync(DeviceInfo device, MediaItem mediaItem, CancellationToken cancellationToken = default)
+        {
+            Stream stream = new MemoryStream(_bytes, writable: false);
+            return Task.FromResult(stream);
+        }
     }
 
     private sealed class SlowPhotoLibraryService : IPhotoLibraryService

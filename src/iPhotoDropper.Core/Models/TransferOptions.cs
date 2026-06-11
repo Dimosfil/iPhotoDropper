@@ -6,7 +6,7 @@ public sealed class TransferOptions
     public bool CopyOnlyNew { get; set; } = true;
     public bool IncludePhotos { get; set; } = true;
     public bool IncludeVideos { get; set; } = true;
-    public bool OrganizeByDateFolders { get; set; } = true;
+    public bool OrganizeByDateFolders { get; set; }
     public long? MaxFileSizeBytes { get; set; }
     public int RetryCount { get; set; } = 2;
     public int MaxParallelTransfers { get; set; } = 1;

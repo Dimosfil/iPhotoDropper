@@ -49,8 +49,8 @@
 
         <Grid Grid.Row="1" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="420" />
-                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="*" MinWidth="320" />
+                <ColumnDefinition Width="*" MinWidth="320" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -226,7 +226,11 @@
                             Grid.Row="1"
                             FontFamily="Cascadia Mono, Consolas"
                             FontSize="15"
-                            Foreground="#FF007AFF" />
+                            Width="330"
+                            MinHeight="22"
+                            HorizontalAlignment="Left"
+                            Foreground="#FF007AFF"
+                            TextWrapping="NoWrap" />
                         <TextBlock
                             x:Name="CurrentFileProgressLabelTextBlock"
                             Grid.Row="2"
@@ -239,13 +243,19 @@
                             Grid.Row="3"
                             FontFamily="Cascadia Mono, Consolas"
                             FontSize="15"
-                            Foreground="#FF007AFF" />
+                            Width="330"
+                            MinHeight="22"
+                            HorizontalAlignment="Left"
+                            Foreground="#FF007AFF"
+                            TextWrapping="NoWrap" />
                         <TextBlock
                             x:Name="CurrentFileProgressDetailsTextBlock"
                             Grid.Row="4"
                             FontSize="12"
                             Foreground="#FF6E6E73"
-                            TextWrapping="Wrap" />
+                            MinHeight="18"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
                     </Grid>
 
                     <TextBox
@@ -304,13 +314,18 @@
                         Grid.Column="1"
                         FontFamily="Cascadia Mono, Consolas"
                         FontSize="12"
-                        Foreground="#FF6E6E73" />
+                        Width="290"
+                        MinHeight="36"
+                        HorizontalAlignment="Right"
+                        Foreground="#FF6E6E73"
+                        TextWrapping="NoWrap" />
                 </Grid>
 
                 <TextBlock
                     x:Name="LastReportTextBlock"
                     Grid.Row="1"
                     Foreground="#FF1D1D1F"
+                    MinHeight="44"
                     TextWrapping="Wrap" />
 
                 <TextBlock

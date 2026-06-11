@@ -72,6 +72,7 @@ public sealed partial class MainWindow : Window
         }
 
         await ViewModel.ImportAsync();
+        _lastDestinationFilesRefresh = DateTimeOffset.MinValue;
         UpdateUi();
     }
 
@@ -138,7 +139,7 @@ public sealed partial class MainWindow : Window
             "Общий: " + RenderProgressBar(ViewModel.OverallProgress) +
             Environment.NewLine +
             "Файл:  " + RenderProgressBar(ViewModel.CurrentFileProgress);
-        LastReportTextBlock.Text = $"Отчет: {ViewModel.LastReport}";
+        LastReportTextBlock.Text = $"Отчет: {ViewModel.LastReport}{Environment.NewLine}{ViewModel.ImportSummary}";
         SetTextIfChanged(MediaFilesTextBox, RenderMedia());
         RefreshDestinationFilesIfNeeded();
         SetTextIfChanged(DestinationFilesTextBox, _destinationFilesText);
@@ -244,11 +245,12 @@ public sealed partial class MainWindow : Window
             return "Медиа iPhone: нет данных. Нажмите \"Показать медиа\".";
         }
 
+        var totalBytes = ViewModel.MediaItems.Sum(x => Math.Max(0, x.Source.SizeBytes));
         var lines = ViewModel.MediaItems
             .Take(1000)
             .Select((x, index) => $"{index + 1,3}. {x.FileName,-32} {x.TypeText,-8} {x.SizeText,10} {x.CapturedText}");
 
-        return $"Медиа iPhone ({ViewModel.MediaItems.Count}):" + Environment.NewLine + string.Join(Environment.NewLine, lines);
+        return $"Медиа iPhone: {ViewModel.MediaItems.Count} файлов / {FormatBytes(totalBytes)}" + Environment.NewLine + string.Join(Environment.NewLine, lines);
     }
 
     private string RenderDestinationFiles()
@@ -336,6 +338,11 @@ public sealed partial class MainWindow : Window
                     info.LastWriteTimeUtc
                 };
             })
+            .ToArray();
+
+        var totalFiles = files.Length;
+        var totalBytes = files.Sum(file => Math.Max(0, file.Length));
+        var shownFiles = files
             .OrderByDescending(file => file.LastWriteTimeUtc)
             .Take(300)
             .Select((file, index) =>
@@ -345,9 +352,11 @@ public sealed partial class MainWindow : Window
             })
             .ToArray();
 
-        return files.Length == 0
-            ? "Скопированные файлы: пока пусто."
-            : "Скопированные файлы:" + Environment.NewLine + string.Join(Environment.NewLine, files);
+        var header = $"В папке назначения: {totalFiles} файлов / {FormatBytes(totalBytes)}";
+
+        return shownFiles.Length == 0
+            ? header + Environment.NewLine + "Скопированные файлы: пока пусто."
+            : header + Environment.NewLine + "Скопированные файлы:" + Environment.NewLine + string.Join(Environment.NewLine, shownFiles);
     }
 
     private static void SetTextIfChanged(TextBox textBox, string text)
@@ -361,8 +370,9 @@ public sealed partial class MainWindow : Window
     private static string RenderProgressBar(int percent)
     {
         const int width = 30;
-        var filled = Math.Clamp(percent * width / 100, 0, width);
-        return "[" + new string('#', filled) + new string('.', width - filled) + $"] {percent}%";
+        var boundedPercent = Math.Clamp(percent, 0, 100);
+        var filled = boundedPercent * width / 100;
+        return "[" + new string('#', filled) + new string('.', width - filled) + $"] " + $"{boundedPercent,3}%";
     }
 
     private string RenderLog()

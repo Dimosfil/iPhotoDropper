@@ -99,3 +99,21 @@ Launch note:
 - [x] Throttle high-frequency copy progress updates during large file transfers.
 - [x] Coalesce WinUI refresh calls so one progress tick does not queue many full screen updates.
 - [x] Verify app stays responsive after launch and build/tests pass.
+
+## Import summary and stable progress UI
+
+- [x] Show clear import totals: found, selected, copied, skipped, failed, and bytes copied.
+- [x] Keep progress labels and text bars at stable dimensions so Start does not make the layout jump.
+- [x] Verify build/tests after the summary and layout changes.
+
+## Destination-scoped duplicate detection
+
+- [x] Treat "copy only new" as duplicate detection within the selected destination folder, not globally per iPhone.
+- [x] Ignore stale queued progress updates after an import completes so final totals stay visible.
+- [x] Verify build/tests after the duplicate detection fix.
+
+## Flat destination import
+
+- [x] Import into the selected destination folder directly instead of creating date/month subfolders by default.
+- [x] Use actual destination files for duplicate skips so previous subfolder imports do not block a flat retry.
+- [x] Verify build/tests after the flat import change.

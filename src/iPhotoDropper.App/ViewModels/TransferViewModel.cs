@@ -20,6 +20,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _importCts;
+    private int _progressRunVersion;
 
     private DeviceInfo? _selectedDevice;
     private string _deviceStatus = "Ожидание устройства";
@@ -27,7 +28,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     private bool _copyOnlyNew = true;
     private bool _copyPhotos = true;
     private bool _copyVideos = true;
-    private bool _organizeByDate = true;
+    private bool _organizeByDate;
     private string? _maxFileSizeMbText;
     private bool _isBusy;
     private bool _isPaused;
@@ -35,6 +36,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     private int _overallProgress;
     private int _currentFileProgress;
     private string _lastReport = "нет отчёта";
+    private string _importSummary = "Импорт ещё не запускался.";
     private string _currentFileName = string.Empty;
 
     public TransferViewModel(
@@ -253,6 +255,20 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         }
     }
 
+    public string ImportSummary
+    {
+        get => _importSummary;
+        private set
+        {
+            if (_importSummary == value)
+            {
+                return;
+            }
+            _importSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
     public string CurrentFileName
     {
         get => _currentFileName;
@@ -269,7 +285,9 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     public int SelectedCount => MediaItems.Count(x => x.IsSelected);
 
-    public string SelectionSummary => $"Выбрано: {SelectedCount}";
+    public long SelectedBytes => MediaItems.Where(x => x.IsSelected).Sum(x => Math.Max(0, x.Source.SizeBytes));
+
+    public string SelectionSummary => $"Выбрано: {SelectedCount} / {FormatBytes(SelectedBytes)}";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -320,11 +338,14 @@ public sealed class TransferViewModel : INotifyPropertyChanged
                 }
 
                 OnPropertyChanged(nameof(SelectedCount));
+                OnPropertyChanged(nameof(SelectedBytes));
                 OnPropertyChanged(nameof(SelectionSummary));
                 UpdateCommands();
             });
 
+            var filteredBytes = filteredItems.Sum(x => Math.Max(0, x.SizeBytes));
             ProgressText = $"Найдено элементов: {filteredItems.Length}";
+            ImportSummary = $"Найдено: {filteredItems.Length} файлов / {FormatBytes(filteredBytes)}. Выбрано: {filteredItems.Length} / {FormatBytes(filteredBytes)}.";
             AddLog($"scan: после фильтров = {filteredItems.Length}");
             foreach (var item in filteredItems.Take(40))
             {
@@ -360,10 +381,15 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         CurrentFileProgress = 0;
         CurrentFileName = string.Empty;
         ProgressText = "Подготовка импорта";
-        AddLog($"import: старт, файлов = {MediaItems.Count(x => x.IsSelected)}, папка = {DestinationFolder}");
+        LastReport = "Импорт выполняется...";
+        var selectedItems = MediaItems.Where(x => x.IsSelected).Select(x => x.Source).ToArray();
+        var selectedBytes = selectedItems.Sum(x => Math.Max(0, x.SizeBytes));
+        ImportSummary = $"К импорту: {selectedItems.Length} файлов / {FormatBytes(selectedBytes)}. Скопировано: 0 / 0 B.";
+        AddLog($"import: старт, файлов = {selectedItems.Length}, объём = {FormatBytes(selectedBytes)}, папка = {DestinationFolder}");
 
         _importCts?.Cancel();
         _importCts = new CancellationTokenSource();
+        var progressRunVersion = Interlocked.Increment(ref _progressRunVersion);
 
         try
         {
@@ -383,26 +409,31 @@ public sealed class TransferViewModel : INotifyPropertyChanged
                 ExistingFileConflictHandler = ExistingFileConflictResolver
             };
 
-            var items = MediaItems.Where(x => x.IsSelected).Select(x => x.Source).ToArray();
-            if (items.Length == 0)
+            if (selectedItems.Length == 0)
             {
                 ProgressText = "Нет выбранных файлов";
+                ImportSummary = "Нет выбранных файлов.";
                 return;
             }
 
             var report = await Task.Run(
                 () => _transferService.ImportAsync(
                     selectedDevice,
-                    items,
+                    selectedItems,
                     options,
-                    new Progress<TransferProgress>(ApplyProgress),
+                    new Progress<TransferProgress>(progress => ApplyProgress(progress, progressRunVersion)),
                     _importCts.Token),
                 _importCts.Token);
 
+            Interlocked.Increment(ref _progressRunVersion);
             LastReport =
-                $"Найдено {report.FoundItems}, выбрано {report.SelectedItems}, " +
-                $"скопировано {report.CopiedCount}, пропущено {report.SkippedCount}, " +
-                $"ошибок {report.FailedCount}, время {report.Duration:g}";
+                $"Найдено {report.FoundItems} / {FormatBytes(report.FoundBytes)}; " +
+                $"выбрано {report.SelectedItems} / {FormatBytes(report.SelectedBytes)}; " +
+                $"скопировано {report.CopiedCount} / {FormatBytes(report.CopiedBytes)}; " +
+                $"пропущено {report.SkippedCount} / {FormatBytes(report.SkippedBytes)}; " +
+                $"ошибок {report.FailedCount} / {FormatBytes(report.FailedBytes)}; " +
+                $"время {report.Duration:g}";
+            ImportSummary = BuildCompletedImportSummary(report);
             if (report.State == TransferOperationState.Completed)
             {
                 OverallProgress = 100;
@@ -414,10 +445,12 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
+            Interlocked.Increment(ref _progressRunVersion);
             AddLog("import: отменен");
         }
         catch (Exception ex)
         {
+            Interlocked.Increment(ref _progressRunVersion);
             AddLog($"import:error {ex.Message}");
             _logger.LogError(ex, "Import failed");
         }
@@ -433,6 +466,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         if (e.PropertyName == nameof(TransferItemViewModel.IsSelected))
         {
             OnPropertyChanged(nameof(SelectedCount));
+            OnPropertyChanged(nameof(SelectedBytes));
             OnPropertyChanged(nameof(SelectionSummary));
             UpdateCommands();
         }
@@ -515,7 +549,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     private void OnTransferProgressChanged(object? sender, TransferProgress progress)
     {
-        ApplyProgress(progress);
+        ApplyProgress(progress, _progressRunVersion);
     }
 
     private void OnTransferLog(object? sender, string message)
@@ -530,10 +564,15 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         });
     }
 
-    private void ApplyProgress(TransferProgress progress)
+    private void ApplyProgress(TransferProgress progress, int progressRunVersion)
     {
         _dispatcher.TryEnqueue(() =>
         {
+            if (progressRunVersion != _progressRunVersion)
+            {
+                return;
+            }
+
             OverallProgress = progress.OverallPercent;
             CurrentFileProgress = progress.CurrentFilePercent;
             CurrentFileName = progress.CurrentItemName ?? string.Empty;
@@ -556,7 +595,32 @@ public sealed class TransferViewModel : INotifyPropertyChanged
             {
                 ProgressText = $"{progress.ProcessedItems}/{progress.TotalItems}";
             }
+
+            ImportSummary = BuildProgressSummary(progress);
         });
+    }
+
+    private static string BuildProgressSummary(TransferProgress progress)
+    {
+        if (progress.TotalItems <= 0 && progress.TotalBytes <= 0)
+        {
+            return "Импорт ожидает данных.";
+        }
+
+        return
+            $"Обработано: {progress.ProcessedItems}/{progress.TotalItems}; " +
+            $"передано: {FormatBytes(Math.Min(progress.TotalBytesTransferred, progress.TotalBytes))} из {FormatBytes(progress.TotalBytes)}; " +
+            $"скопировано: {progress.CopiedItems}; " +
+            $"пропущено: {progress.SkippedItems}; " +
+            $"ошибок: {progress.FailedItems}.";
+    }
+
+    private static string BuildCompletedImportSummary(TransferResult report)
+    {
+        return
+            $"Перекинули: {report.CopiedCount} файлов / {FormatBytes(report.CopiedBytes)}. " +
+            $"Пропущено: {report.SkippedCount} / {FormatBytes(report.SkippedBytes)}. " +
+            $"Ошибок: {report.FailedCount} / {FormatBytes(report.FailedBytes)}.";
     }
 
     private void UpdateStatusFromDevice()
@@ -619,6 +683,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
             cancel.NotifyCanExecuteChanged();
         }
         OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(SelectedBytes));
         OnPropertyChanged(nameof(SelectionSummary));
         OnPropertyChanged(nameof(CanScan));
         OnPropertyChanged(nameof(CanImport));

@@ -74,7 +74,8 @@ public sealed class TransferService : ITransferService
             {
                 State = _state,
                 StartedAtUtc = startAt,
-                FoundItems = mediaItems.Count
+                FoundItems = mediaItems.Count,
+                FoundBytes = mediaItems.Sum(x => Math.Max(0, x.SizeBytes))
             };
 
             var filteredItems = mediaItems
@@ -82,15 +83,18 @@ public sealed class TransferService : ITransferService
                 .Where(x => options.MaxFileSizeBytes is null || x.SizeBytes <= options.MaxFileSizeBytes.Value)
                 .ToArray();
 
-            result.SelectedItems = filteredItems.Length;
             var totalBytes = filteredItems.Sum(x => Math.Max(0, x.SizeBytes));
+            result.SelectedItems = filteredItems.Length;
+            result.SelectedBytes = totalBytes;
             var copied = 0;
             var skipped = 0;
             var failed = 0;
             var processed = 0;
             var totalBytesTransferred = 0L;
+            var copiedBytes = 0L;
+            var skippedBytes = 0L;
+            var failedBytes = 0L;
 
-            var importedKeys = await _stateStore.GetImportedKeysAsync(device.DeviceId, token);
             LogChanged?.Invoke(this, $"Найдено {filteredItems.Length} файлов для импорта.");
 
             for (var i = 0; i < filteredItems.Length; i++)
@@ -123,9 +127,10 @@ public sealed class TransferService : ITransferService
                     _pauseSignal.Wait(token);
                 }
 
-                if (options.CopyOnlyNew && (importedKeys.Contains(itemKey) || importedKeys.Contains(fallbackKey)))
+                if (options.CopyOnlyNew && ShouldSkipFromImportHistory(itemKey, fallbackKey))
                 {
                     skipped++;
+                    skippedBytes += Math.Max(0, media.SizeBytes);
                     result.Items.Add(new TransferResultItem
                     {
                         MediaId = media.Id,
@@ -146,6 +151,8 @@ public sealed class TransferService : ITransferService
                         TotalBytes = totalBytes,
                         TotalBytesTransferred = totalBytesTransferred,
                         CurrentItemName = media.FileName,
+                        CurrentItemBytesTransferred = Math.Max(1, media.SizeBytes),
+                        CurrentItemBytesTotal = Math.Max(1, media.SizeBytes),
                         Message = "Пропущено (дубликат)"
                     }, progress);
                     continue;
@@ -158,6 +165,7 @@ public sealed class TransferService : ITransferService
                     if (existingFileAction == ExistingFileAction.Skip)
                     {
                         skipped++;
+                        skippedBytes += Math.Max(0, media.SizeBytes);
                         result.Items.Add(new TransferResultItem
                         {
                             MediaId = media.Id,
@@ -178,6 +186,8 @@ public sealed class TransferService : ITransferService
                             TotalBytes = totalBytes,
                             TotalBytesTransferred = totalBytesTransferred,
                             CurrentItemName = media.FileName,
+                            CurrentItemBytesTransferred = Math.Max(1, media.SizeBytes),
+                            CurrentItemBytesTotal = Math.Max(1, media.SizeBytes),
                             Message = "Пропущено (файл уже существует)"
                         }, progress);
                         continue;
@@ -217,6 +227,7 @@ public sealed class TransferService : ITransferService
                     if (!success)
                     {
                         failed++;
+                        failedBytes += Math.Max(0, media.SizeBytes);
                         result.Items.Add(new TransferResultItem
                         {
                             MediaId = media.Id,
@@ -237,10 +248,8 @@ public sealed class TransferService : ITransferService
                     {
                         await _stateStore.MarkImportedAsync(device.DeviceId, fallbackKey, media.Id, finalPath, token);
                     }
-                    importedKeys.Add(itemKey);
-                    importedKeys.Add(fallbackKey);
-
                     copied++;
+                    copiedBytes += Math.Max(0, new FileInfo(finalPath).Length);
                     result.Items.Add(new TransferResultItem
                     {
                         MediaId = media.Id,
@@ -266,6 +275,7 @@ public sealed class TransferService : ITransferService
                 catch (Exception ex)
                 {
                     failed++;
+                    failedBytes += Math.Max(0, media.SizeBytes);
                     result.Items.Add(new TransferResultItem
                     {
                         MediaId = media.Id,
@@ -287,6 +297,9 @@ public sealed class TransferService : ITransferService
                     result.CopiedCount = copied;
                     result.SkippedCount = skipped;
                     result.FailedCount = failed;
+                    result.CopiedBytes = copiedBytes;
+                    result.SkippedBytes = skippedBytes;
+                    result.FailedBytes = failedBytes;
                     PublishProgress(new TransferProgress
                     {
                         State = _state,
@@ -316,6 +329,9 @@ public sealed class TransferService : ITransferService
             result.CopiedCount = copied;
             result.SkippedCount = skipped;
             result.FailedCount = failed;
+            result.CopiedBytes = copiedBytes;
+            result.SkippedBytes = skippedBytes;
+            result.FailedBytes = failedBytes;
             result.CompletedAtUtc = DateTimeOffset.UtcNow;
             result.Duration = result.CompletedAtUtc - result.StartedAtUtc;
             return result;
@@ -545,6 +561,52 @@ public sealed class TransferService : ITransferService
         };
 
         return await handler(conflict, token);
+    }
+
+    private async Task<HashSet<string>> GetImportedKeysForDestinationAsync(
+        string deviceId,
+        string destinationFolder,
+        CancellationToken token)
+    {
+        var destinationRoot = NormalizeDirectoryPath(destinationFolder);
+        var history = await _stateStore.GetHistoryAsync(deviceId, int.MaxValue, token);
+        return history
+            .Where(entry => IsPathUnderDirectory(entry.DestinationPath, destinationRoot))
+            .Select(entry => entry.MediaKey)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static bool IsPathUnderDirectory(string path, string directoryRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            return fullPath.StartsWith(directoryRoot, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeDirectoryPath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        return fullPath.EndsWith(Path.DirectorySeparatorChar)
+            ? fullPath
+            : fullPath + Path.DirectorySeparatorChar;
+    }
+
+    private static bool ShouldSkipFromImportHistory(string itemKey, string fallbackKey)
+    {
+        _ = itemKey;
+        _ = fallbackKey;
+        return false;
     }
 
     private static void EnsureFreeSpace(string destinationFilePath, long neededBytes)

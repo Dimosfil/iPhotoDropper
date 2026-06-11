@@ -10,6 +10,11 @@ public sealed class TransferResult
     public int CopiedCount { get; set; }
     public int SkippedCount { get; set; }
     public int FailedCount { get; set; }
+    public long FoundBytes { get; set; }
+    public long SelectedBytes { get; set; }
+    public long CopiedBytes { get; set; }
+    public long SkippedBytes { get; set; }
+    public long FailedBytes { get; set; }
     public TimeSpan Duration { get; set; }
     public bool WasCanceled { get; set; }
     public DateTimeOffset StartedAtUtc { get; set; } = DateTimeOffset.UtcNow;
