@@ -1,0 +1,8 @@
+# Local/generated AI-agent memory and runtime noise
+tools/project-memory/*.sqlite
+tools/project-memory/*.sqlite-*
+tools/project-memory/*.db
+tools/project-memory/*.db-*
+tools/summary/*.tmp
+tools/deploy/ftp.local.json
+*.log
