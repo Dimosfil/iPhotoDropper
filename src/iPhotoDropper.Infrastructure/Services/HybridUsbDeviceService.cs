@@ -12,6 +12,7 @@ public sealed class HybridUsbDeviceService : IUsbDeviceService
 
     private readonly IPhoneMtpDeviceService _mtpService;
     private readonly MockUsbDeviceService _mockService;
+    private readonly bool _enableMockFallback;
     private readonly SemaphoreSlim _sync = new(1, 1);
 
     private IReadOnlyList<DeviceInfo> _currentDevices = Array.Empty<DeviceInfo>();
@@ -20,10 +21,14 @@ public sealed class HybridUsbDeviceService : IUsbDeviceService
     private bool _realDeviceSeen;
     private bool _mockStarted;
 
-    public HybridUsbDeviceService(IPhoneMtpDeviceService mtpService, MockUsbDeviceService mockService)
+    public HybridUsbDeviceService(
+        IPhoneMtpDeviceService mtpService,
+        MockUsbDeviceService mockService,
+        bool enableMockFallback = false)
     {
         _mtpService = mtpService;
         _mockService = mockService;
+        _enableMockFallback = enableMockFallback;
     }
 
     public event EventHandler<DeviceConnectionEventArgs>? DeviceConnected;
@@ -116,9 +121,14 @@ public sealed class HybridUsbDeviceService : IUsbDeviceService
                 _mockStarted = false;
             }
         }
-        else if (_realDeviceSeen)
+        else if (_realDeviceSeen || !_enableMockFallback)
         {
             desiredDevices = Array.Empty<DeviceInfo>();
+            if (_mockStarted)
+            {
+                await _mockService.StopAsync();
+                _mockStarted = false;
+            }
         }
         else
         {

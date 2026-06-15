@@ -197,10 +197,17 @@
                     <StackPanel Grid.Row="3" Spacing="8">
                         <Button
                             x:Name="ScanButton"
-                            Content="Показать медиа"
                             Click="OnScanClick"
                             HorizontalAlignment="Stretch"
-                            Style="{StaticResource PrimaryButtonStyle}" />
+                            Style="{StaticResource PrimaryButtonStyle}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock
+                                    x:Name="ScanButtonBusyTextBlock"
+                                    Text="[...]"
+                                    Visibility="Collapsed" />
+                                <TextBlock x:Name="ScanButtonTextBlock" Text="Показать медиа" />
+                            </StackPanel>
+                        </Button>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -338,10 +345,18 @@
                                     <TextBlock x:Name="SelectionSummaryTextBlock" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
                                 </StackPanel>
                                 <Button
+                                    x:Name="MediaRefreshButton"
                                     Grid.Column="1"
-                                    Content="Обновить"
                                     Click="OnScanClick"
-                                    Style="{StaticResource ToolbarButtonStyle}" />
+                                    Style="{StaticResource ToolbarButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                        <TextBlock
+                                            x:Name="MediaRefreshBusyTextBlock"
+                                            Text="[...]"
+                                            Visibility="Collapsed" />
+                                        <TextBlock x:Name="MediaRefreshButtonTextBlock" Text="Обновить" />
+                                    </StackPanel>
+                                </Button>
                             </Grid>
 
                             <TextBlock

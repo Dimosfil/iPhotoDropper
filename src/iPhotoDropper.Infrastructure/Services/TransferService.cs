@@ -243,6 +243,7 @@ public sealed class TransferService : ITransferService
                     File.Move(tempPath, finalPath, overwrite: File.Exists(finalPath));
 
                     await VerifyFileSizeAsync(media, finalPath, token);
+                    ApplyOriginalFileTimestamps(media, finalPath);
                     await _stateStore.MarkImportedAsync(device.DeviceId, itemKey, media.Id, finalPath, token);
                     if (!string.Equals(itemKey, fallbackKey, StringComparison.Ordinal))
                     {
@@ -661,6 +662,35 @@ public sealed class TransferService : ITransferService
                 throw new IOException($"Нарушена целостность файла: ожидаемо {item.SizeBytes} байт, получено {fi.Length}.");
             }
         }, token);
+    }
+
+    private void ApplyOriginalFileTimestamps(MediaItem item, string destinationPath)
+    {
+        var modifiedAt = item.SourceModifiedAt ?? item.CapturedAt;
+        var createdAt = item.SourceCreatedAt ?? modifiedAt;
+
+        if (createdAt is null && modifiedAt is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (createdAt.HasValue)
+            {
+                File.SetCreationTimeUtc(destinationPath, createdAt.Value.UtcDateTime);
+            }
+
+            if (modifiedAt.HasValue)
+            {
+                File.SetLastWriteTimeUtc(destinationPath, modifiedAt.Value.UtcDateTime);
+                File.SetLastAccessTimeUtc(destinationPath, modifiedAt.Value.UtcDateTime);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentOutOfRangeException or NotSupportedException)
+        {
+            _logger.LogWarning(ex, "Could not preserve timestamps for imported file {FileName}", item.FileName);
+        }
     }
 
     private void PublishProgress(TransferProgress progress, IProgress<TransferProgress>? externalProgress = null)

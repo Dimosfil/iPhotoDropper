@@ -18,7 +18,10 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
         ".mp4", ".mov", ".m4v", ".avi"
     };
 
-    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+        DeviceInfo device,
+        CancellationToken cancellationToken = default,
+        IProgress<MediaItem>? itemDiscovered = null)
     {
         return Task.Run(async () =>
         {
@@ -26,13 +29,15 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
             try
             {
                 using var mediaDevice = OpenDevice(device);
-                if (!TryFindMediaRoot(mediaDevice, out var mediaRoot))
+                var mediaRoots = FindMediaRoots(mediaDevice);
+                if (mediaRoots.Count == 0)
                 {
                     return (IReadOnlyList<MediaItem>)Array.Empty<MediaItem>();
                 }
 
-                var files = mediaDevice
-                    .EnumerateFiles(mediaRoot, "*.*", SearchOption.AllDirectories)
+                var files = mediaRoots
+                    .SelectMany(root => EnumerateFilesSafe(mediaDevice, root))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Where(IsSupported)
                     .Take(5000);
 
@@ -47,12 +52,15 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
                     var sizeBytes = SafeReadLong(() => checked((long)Math.Min(info.Length, long.MaxValue)));
                     var ext = Path.GetExtension(fileName);
                     var kind = VideoExtensions.Contains(ext) ? MediaKind.Video : MediaKind.Photo;
+                    var dateAuthored = SafeRead(() => info.DateAuthored);
+                    var createdAt = SafeRead(() => info.CreationTime);
+                    var modifiedAt = SafeRead(() => info.LastWriteTime);
                     var captured = FirstValidDate(
-                        SafeRead(() => info.DateAuthored),
-                        SafeRead(() => info.CreationTime),
-                        SafeRead(() => info.LastWriteTime));
+                        dateAuthored,
+                        createdAt,
+                        modifiedAt);
 
-                    items.Add(new MediaItem
+                    var item = new MediaItem
                     {
                         DeviceId = device.DeviceId,
                         Id = !string.IsNullOrWhiteSpace(persistentId) ? persistentId : fullName,
@@ -60,10 +68,14 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
                         Kind = kind,
                         SizeBytes = sizeBytes,
                         CapturedAt = captured,
+                        SourceCreatedAt = FirstValidDate(createdAt),
+                        SourceModifiedAt = FirstValidDate(modifiedAt),
                         RelativePath = fullName,
                         MimeType = GetMimeType(ext),
                         SourcePath = fullName
-                    });
+                    };
+                    items.Add(item);
+                    itemDiscovered?.Report(item);
                 }
 
                 return items
@@ -106,21 +118,28 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
 
     internal static bool TryFindMediaRoot(MediaDevice device, out string mediaRoot)
     {
+        var roots = FindMediaRoots(device);
+        mediaRoot = roots.Count > 0 ? roots[0] : string.Empty;
+        return roots.Count > 0;
+    }
+
+    private static IReadOnlyList<string> FindMediaRoots(MediaDevice device)
+    {
         var candidates = new[]
         {
-            @"\Internal Storage\DCIM",
             @"\Internal Storage",
-            @"\Внутреннее хранилище\DCIM",
+            @"\Internal Storage\DCIM",
             @"\Внутреннее хранилище",
+            @"\Внутреннее хранилище\DCIM",
             @"\DCIM"
         };
 
+        var roots = new List<string>();
         foreach (var candidate in candidates)
         {
             if (device.DirectoryExists(candidate))
             {
-                mediaRoot = candidate;
-                return true;
+                roots.Add(candidate);
             }
         }
 
@@ -132,15 +151,13 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
                 if (root.Contains("storage", StringComparison.OrdinalIgnoreCase)
                     || root.Contains("хранили", StringComparison.OrdinalIgnoreCase))
                 {
-                    mediaRoot = root;
-                    return true;
+                    roots.Add(root);
                 }
 
                 var dcimCandidate = CombineMtpPath(root, "DCIM");
                 if (device.DirectoryExists(dcimCandidate))
                 {
-                    mediaRoot = dcimCandidate;
-                    return true;
+                    roots.Add(dcimCandidate);
                 }
             }
         }
@@ -149,8 +166,45 @@ public sealed class IPhoneMtpPhotoLibraryService : IPhotoLibraryService
             // Some devices reject root enumeration until trust is accepted.
         }
 
-        mediaRoot = string.Empty;
-        return false;
+        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static IEnumerable<string> EnumerateFilesSafe(MediaDevice device, string mediaRoot)
+    {
+        IEnumerator<string>? enumerator = null;
+        try
+        {
+            enumerator = device
+                .EnumerateFiles(mediaRoot, "*.*", SearchOption.AllDirectories)
+                .GetEnumerator();
+        }
+        catch
+        {
+            yield break;
+        }
+
+        using (enumerator)
+        {
+            while (true)
+            {
+                string current;
+                try
+                {
+                    if (!enumerator.MoveNext())
+                    {
+                        yield break;
+                    }
+
+                    current = enumerator.Current;
+                }
+                catch
+                {
+                    yield break;
+                }
+
+                yield return current;
+            }
+        }
     }
 
     private static MediaDevice OpenDevice(DeviceInfo device)

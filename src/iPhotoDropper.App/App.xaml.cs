@@ -66,10 +66,17 @@ public partial class App : Application
         var mockDeviceRoot = string.IsNullOrWhiteSpace(context.Configuration["MockDevice:RootPath"])
             ? fallbackMockRoot
             : context.Configuration["MockDevice:RootPath"]!;
+        var enableMockDevice = string.Equals(
+            context.Configuration["MockDevice:Enabled"],
+            "true",
+            StringComparison.OrdinalIgnoreCase);
 
         services.AddSingleton<IPhoneMtpDeviceService>();
         services.AddSingleton<MockUsbDeviceService>();
-        services.AddSingleton<IUsbDeviceService, HybridUsbDeviceService>();
+        services.AddSingleton<IUsbDeviceService>(sp => new HybridUsbDeviceService(
+            sp.GetRequiredService<IPhoneMtpDeviceService>(),
+            sp.GetRequiredService<MockUsbDeviceService>(),
+            enableMockDevice));
         services.AddSingleton<IPhoneMtpPhotoLibraryService>();
         services.AddSingleton(sp => new MockPhotoLibraryService(mockDeviceRoot));
         services.AddSingleton<IPhotoLibraryService, HybridPhotoLibraryService>();

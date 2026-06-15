@@ -16,11 +16,14 @@ public sealed class HybridPhotoLibraryService : IPhotoLibraryService
         _mockLibrary = mockLibrary;
     }
 
-    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+        DeviceInfo device,
+        CancellationToken cancellationToken = default,
+        IProgress<MediaItem>? itemDiscovered = null)
     {
         return IPhoneMtpDeviceService.IsMtpDevice(device)
-            ? _mtpLibrary.ScanMediaAsync(device, cancellationToken)
-            : _mockLibrary.ScanMediaAsync(device, cancellationToken);
+            ? _mtpLibrary.ScanMediaAsync(device, cancellationToken, itemDiscovered)
+            : _mockLibrary.ScanMediaAsync(device, cancellationToken, itemDiscovered);
     }
 
     public Task<Stream> OpenMediaStreamAsync(DeviceInfo device, MediaItem mediaItem, CancellationToken cancellationToken = default)

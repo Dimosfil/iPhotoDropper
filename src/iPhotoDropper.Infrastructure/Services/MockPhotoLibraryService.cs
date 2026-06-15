@@ -24,7 +24,10 @@ public sealed class MockPhotoLibraryService : IPhotoLibraryService
             : mockRootPath;
     }
 
-    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+        DeviceInfo device,
+        CancellationToken cancellationToken = default,
+        IProgress<MediaItem>? itemDiscovered = null)
     {
         var items = new List<MediaItem>();
 
@@ -44,7 +47,7 @@ public sealed class MockPhotoLibraryService : IPhotoLibraryService
             var ext = info.Extension;
             var kind = VideoExtensions.Contains(ext) ? MediaKind.Video : MediaKind.Photo;
             var relative = TryGetRelativePath(file);
-            items.Add(new MediaItem
+            var item = new MediaItem
             {
                 DeviceId = device.DeviceId,
                 Id = $"{device.DeviceId}|{relative}|{info.Length}|{info.LastWriteTimeUtc:O}",
@@ -52,10 +55,14 @@ public sealed class MockPhotoLibraryService : IPhotoLibraryService
                 Kind = kind,
                 SizeBytes = info.Length,
                 CapturedAt = info.LastWriteTimeUtc,
+                SourceCreatedAt = info.CreationTimeUtc,
+                SourceModifiedAt = info.LastWriteTimeUtc,
                 RelativePath = relative,
                 MimeType = GetMimeType(ext),
                 SourcePath = file
-            });
+            };
+            items.Add(item);
+            itemDiscovered?.Report(item);
         }
 
         return Task.FromResult<IReadOnlyList<MediaItem>>(items);

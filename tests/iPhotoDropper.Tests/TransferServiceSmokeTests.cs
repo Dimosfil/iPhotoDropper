@@ -197,6 +197,46 @@ public sealed class TransferServiceSmokeTests
     }
 
     [Fact]
+    public async Task ImportPreservesSourceFileTimestamps()
+    {
+        using var workspace = TempWorkspace.Create();
+        var destinationRoot = workspace.CreateDirectory("imports");
+        var statePath = Path.Combine(workspace.Root, "state", "transfer-state.json");
+        var device = new DeviceInfo("mock-device", "Mock iPhone", isConnected: true, isTrusted: true);
+        var createdAt = new DateTimeOffset(2024, 1, 2, 3, 4, 5, TimeSpan.Zero);
+        var modifiedAt = new DateTimeOffset(2024, 6, 7, 8, 9, 10, TimeSpan.Zero);
+        var item = new MediaItem
+        {
+            DeviceId = device.DeviceId,
+            Id = "timestamped-photo",
+            FileName = "IMG_0002.jpg",
+            Kind = MediaKind.Photo,
+            SizeBytes = 3,
+            CapturedAt = modifiedAt,
+            SourceCreatedAt = createdAt,
+            SourceModifiedAt = modifiedAt
+        };
+
+        var service = CreateTransferService(new SingleItemPhotoLibraryService(item, new byte[] { 7, 8, 9 }), statePath);
+        var result = await service.ImportAsync(device, new[] { item }, new TransferOptions
+        {
+            DestinationFolder = destinationRoot,
+            IncludePhotos = true,
+            IncludeVideos = true,
+            OrganizeByDateFolders = false,
+            RetryBaseDelayMs = 1
+        });
+
+        Assert.Equal(1, result.CopiedCount);
+        var copiedPath = result.Items.Single().DestinationPath!;
+        AssertTimestampClose(modifiedAt.UtcDateTime, File.GetLastWriteTimeUtc(copiedPath));
+        if (OperatingSystem.IsWindows())
+        {
+            AssertTimestampClose(createdAt.UtcDateTime, File.GetCreationTimeUtc(copiedPath));
+        }
+    }
+
+    [Fact]
     public async Task PauseResumeAndCancelTransitionsDoNotCrashActiveTransfer()
     {
         using var workspace = TempWorkspace.Create();
@@ -266,6 +306,12 @@ public sealed class TransferServiceSmokeTests
         Assert.Fail("Condition was not reached before timeout.");
     }
 
+    private static void AssertTimestampClose(DateTime expectedUtc, DateTime actualUtc)
+    {
+        var delta = (actualUtc - expectedUtc).Duration();
+        Assert.True(delta <= TimeSpan.FromSeconds(2), $"Expected {actualUtc:O} to be within 2 seconds of {expectedUtc:O}.");
+    }
+
     private sealed class SingleItemPhotoLibraryService : IPhotoLibraryService
     {
         private readonly MediaItem _item;
@@ -277,8 +323,12 @@ public sealed class TransferServiceSmokeTests
             _bytes = bytes;
         }
 
-        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+            DeviceInfo device,
+            CancellationToken cancellationToken = default,
+            IProgress<MediaItem>? itemDiscovered = null)
         {
+            itemDiscovered?.Report(_item);
             return Task.FromResult<IReadOnlyList<MediaItem>>(new[] { _item });
         }
 
@@ -298,8 +348,12 @@ public sealed class TransferServiceSmokeTests
             _item = item;
         }
 
-        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(DeviceInfo device, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+            DeviceInfo device,
+            CancellationToken cancellationToken = default,
+            IProgress<MediaItem>? itemDiscovered = null)
         {
+            itemDiscovered?.Report(_item);
             return Task.FromResult<IReadOnlyList<MediaItem>>(new[] { _item });
         }
 

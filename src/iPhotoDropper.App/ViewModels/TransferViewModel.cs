@@ -31,6 +31,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     private bool _organizeByDate;
     private string? _maxFileSizeMbText;
     private bool _isBusy;
+    private bool _isScanning;
     private bool _isPaused;
     private string _progressText = "Готов.";
     private int _overallProgress;
@@ -188,9 +189,27 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         get => _isBusy;
         private set
         {
+            if (_isBusy == value)
+            {
+                return;
+            }
             _isBusy = value;
             OnPropertyChanged();
             UpdateCommands();
+        }
+    }
+
+    public bool IsScanning
+    {
+        get => _isScanning;
+        private set
+        {
+            if (_isScanning == value)
+            {
+                return;
+            }
+            _isScanning = value;
+            OnPropertyChanged();
         }
     }
 
@@ -306,6 +325,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         }
 
         IsBusy = true;
+        IsScanning = true;
         ResetDeviceSessionState($"Сканируем: {selectedDevice.DisplayName}");
         AddLog("scan: старт");
         AddLog($"scan: устройство = {selectedDevice.DisplayName}, transport = {selectedDevice.Transport ?? "USB"}, trusted = {selectedDevice.IsTrusted}");
@@ -313,65 +333,127 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         AddLog($"scan: фильтры = photos:{CopyPhotos}, videos:{CopyVideos}, maxMB:{MaxFileSizeMbText ?? "none"}");
         _scanCts?.Cancel();
         _scanCts = new CancellationTokenSource();
+        var scanCts = _scanCts;
+        var includePhotos = CopyPhotos;
+        var includeVideos = CopyVideos;
+        long? maxBytes = null;
+        if (long.TryParse(MaxFileSizeMbText, out var maxMb) && maxMb > 0)
+        {
+            maxBytes = maxMb * 1024 * 1024;
+        }
+
+        var liveItemsEnabled = 1;
+        var filteredCount = 0;
+        long filteredBytes = 0;
+        var itemProgress = new SynchronousProgress<MediaItem>(item =>
+        {
+            if (!MatchesScanFilters(item, includePhotos, includeVideos, maxBytes))
+            {
+                return;
+            }
+
+            var count = Interlocked.Increment(ref filteredCount);
+            var bytes = Interlocked.Add(ref filteredBytes, Math.Max(0, item.SizeBytes));
+            _dispatcher.TryEnqueue(() =>
+            {
+                if (Volatile.Read(ref liveItemsEnabled) == 0 || _scanCts != scanCts || scanCts.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                AddScannedMediaItem(item, count, bytes, count <= 40);
+            });
+        });
 
         try
         {
             var scanned = await Task.Run(
-                () => _libraryService.ScanMediaAsync(selectedDevice, _scanCts.Token),
-                _scanCts.Token);
+                () => _libraryService.ScanMediaAsync(selectedDevice, scanCts.Token, itemProgress),
+                scanCts.Token);
+            Volatile.Write(ref liveItemsEnabled, 0);
             AddLog($"scan: получено от источника = {scanned.Count}");
-            var filtered = scanned.Where(x => (CopyPhotos && x.Kind == MediaKind.Photo) || (CopyVideos && x.Kind == MediaKind.Video));
-            if (long.TryParse(MaxFileSizeMbText, out var maxMb) && maxMb > 0)
-            {
-                var maxBytes = maxMb * 1024 * 1024;
-                filtered = filtered.Where(x => x.SizeBytes <= maxBytes);
-            }
+            var filteredItems = scanned
+                .Where(x => MatchesScanFilters(x, includePhotos, includeVideos, maxBytes))
+                .ToArray();
+            ReplaceMediaItems(filteredItems);
 
-            var filteredItems = filtered.ToArray();
-
-            _dispatcher.TryEnqueue(() =>
-            {
-                foreach (var item in MediaItems)
-                {
-                    item.PropertyChanged -= OnItemSelectionChanged;
-                }
-
-                MediaItems.Clear();
-                foreach (var item in filteredItems)
-                {
-                    var itemVm = new TransferItemViewModel { Source = item, IsSelected = true };
-                    itemVm.PropertyChanged += OnItemSelectionChanged;
-                    MediaItems.Add(itemVm);
-                }
-
-                OnPropertyChanged(nameof(SelectedCount));
-                OnPropertyChanged(nameof(SelectedBytes));
-                OnPropertyChanged(nameof(SelectionSummary));
-                UpdateCommands();
-            });
-
-            var filteredBytes = filteredItems.Sum(x => Math.Max(0, x.SizeBytes));
+            var finalFilteredBytes = filteredItems.Sum(x => Math.Max(0, x.SizeBytes));
             ProgressText = $"Найдено элементов: {filteredItems.Length}";
-            ImportSummary = $"Найдено: {filteredItems.Length} файлов / {FormatBytes(filteredBytes)}. Выбрано: {filteredItems.Length} / {FormatBytes(filteredBytes)}.";
+            ImportSummary = $"Найдено: {filteredItems.Length} файлов / {FormatBytes(finalFilteredBytes)}. Выбрано: {filteredItems.Length} / {FormatBytes(finalFilteredBytes)}.";
             AddLog($"scan: после фильтров = {filteredItems.Length}");
-            foreach (var item in filteredItems.Take(40))
-            {
-                AddLog($"scan:file {item.FileName} | {item.Kind} | {FormatBytes(item.SizeBytes)} | {item.RelativePath ?? item.SourcePath ?? "no path"}");
-            }
         }
         catch (OperationCanceledException)
         {
+            Volatile.Write(ref liveItemsEnabled, 0);
             AddLog("scan: отменено");
         }
         catch (Exception ex)
         {
+            Volatile.Write(ref liveItemsEnabled, 0);
             AddLog($"scan:error {ex.Message}");
             _logger.LogError(ex, "Scan failed");
         }
         finally
         {
+            IsScanning = false;
             IsBusy = false;
         }
+    }
+
+    private void AddScannedMediaItem(MediaItem item, int count, long totalBytes, bool addSampleLog)
+    {
+        var itemVm = new TransferItemViewModel { Source = item, IsSelected = true };
+        itemVm.PropertyChanged += OnItemSelectionChanged;
+        MediaItems.Add(itemVm);
+
+        CurrentFileName = item.FileName;
+        ProgressText = $"Найдено элементов: {count}";
+        ImportSummary = $"Найдено: {count} файлов / {FormatBytes(totalBytes)}. Выбрано: {count} / {FormatBytes(totalBytes)}.";
+        if (addSampleLog)
+        {
+            AddLog($"scan:file {item.FileName} | {item.Kind} | {FormatBytes(item.SizeBytes)} | {item.RelativePath ?? item.SourcePath ?? "no path"}");
+        }
+
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(SelectedBytes));
+        OnPropertyChanged(nameof(SelectionSummary));
+        UpdateCommands();
+    }
+
+    private void ReplaceMediaItems(IReadOnlyList<MediaItem> items)
+    {
+        foreach (var item in MediaItems)
+        {
+            item.PropertyChanged -= OnItemSelectionChanged;
+        }
+
+        MediaItems.Clear();
+        foreach (var item in items)
+        {
+            var itemVm = new TransferItemViewModel { Source = item, IsSelected = true };
+            itemVm.PropertyChanged += OnItemSelectionChanged;
+            MediaItems.Add(itemVm);
+        }
+
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(SelectedBytes));
+        OnPropertyChanged(nameof(SelectionSummary));
+        UpdateCommands();
+    }
+
+    private static bool MatchesScanFilters(MediaItem item, bool includePhotos, bool includeVideos, long? maxBytes)
+    {
+        if (item.Kind == MediaKind.Photo && !includePhotos)
+        {
+            return false;
+        }
+
+        if (item.Kind == MediaKind.Video && !includeVideos)
+        {
+            return false;
+        }
+
+        return maxBytes is null || item.SizeBytes <= maxBytes.Value;
     }
 
     public async Task ImportAsync()
@@ -742,6 +824,21 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     private void AddLog(string message)
     {
         LogLines.Insert(0, $"{DateTimeOffset.Now:HH:mm:ss} | {message}");
+    }
+
+    private sealed class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public SynchronousProgress(Action<T> handler)
+        {
+            _handler = handler;
+        }
+
+        public void Report(T value)
+        {
+            _handler(value);
+        }
     }
 
     private static string FormatBytes(long bytes)

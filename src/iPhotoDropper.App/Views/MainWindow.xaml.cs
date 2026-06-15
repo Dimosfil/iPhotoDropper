@@ -75,7 +75,9 @@ public sealed partial class MainWindow : Window
 
     private async void OnScanClick(object sender, RoutedEventArgs e)
     {
-        await ViewModel.ScanAsync();
+        var scanTask = ViewModel.ScanAsync();
+        UpdateUi();
+        await scanTask;
         UpdateUi();
     }
 
@@ -199,6 +201,19 @@ public sealed partial class MainWindow : Window
             SetTextIfChanged(ScanLogTextBox, RenderLog());
             ScanLogTextBox.SelectionStart = ScanLogTextBox.Text.Length;
 
+            var importControlsEnabled = ViewModel.IsDeviceReady && !ViewModel.IsBusy;
+            var scanButtonText = ViewModel.IsScanning ? "Сканируем..." : "Показать медиа";
+            var mediaRefreshButtonText = ViewModel.IsScanning ? "Скан..." : "Обновить";
+            ScanButtonTextBlock.Text = scanButtonText;
+            MediaRefreshButtonTextBlock.Text = mediaRefreshButtonText;
+            ScanButtonBusyTextBlock.Visibility = ViewModel.IsScanning ? Visibility.Visible : Visibility.Collapsed;
+            MediaRefreshBusyTextBlock.Visibility = ViewModel.IsScanning ? Visibility.Visible : Visibility.Collapsed;
+            PhotosCheckBox.IsEnabled = importControlsEnabled;
+            VideosCheckBox.IsEnabled = importControlsEnabled;
+            CopyOnlyNewCheckBox.IsEnabled = importControlsEnabled;
+            OrganizeByDateCheckBox.IsEnabled = importControlsEnabled;
+            MaxSizeTextBox.IsEnabled = importControlsEnabled;
+            MediaRefreshButton.IsEnabled = ViewModel.ScanCommand.CanExecute(null);
             ScanButton.IsEnabled = ViewModel.ScanCommand.CanExecute(null);
             ImportButton.IsEnabled = ViewModel.ImportCommand.CanExecute(null);
             PauseButton.IsEnabled = ViewModel.PauseCommand.CanExecute(null);

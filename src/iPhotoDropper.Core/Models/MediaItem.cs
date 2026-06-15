@@ -10,6 +10,8 @@ public sealed class MediaItem
     public MediaKind Kind { get; init; } = MediaKind.Photo;
     public long SizeBytes { get; init; }
     public DateTimeOffset? CapturedAt { get; init; }
+    public DateTimeOffset? SourceCreatedAt { get; init; }
+    public DateTimeOffset? SourceModifiedAt { get; init; }
     public string? RelativePath { get; init; }
     public string? MimeType { get; init; }
 

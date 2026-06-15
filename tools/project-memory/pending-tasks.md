@@ -98,6 +98,12 @@ Launch note:
 
 - [x] Throttle high-frequency copy progress updates during large file transfers.
 - [x] Coalesce WinUI refresh calls so one progress tick does not queue many full screen updates.
+
+## Real-device-only default mode
+
+- [x] Disable automatic mock iPhone fallback in normal app startup.
+- [x] Disable import controls while no real device is connected.
+- [x] Verify build/tests after the device gating change.
 - [x] Verify app stays responsive after launch and build/tests pass.
 
 ## Import summary and stable progress UI
@@ -111,6 +117,12 @@ Launch note:
 - [x] Treat "copy only new" as duplicate detection within the selected destination folder, not globally per iPhone.
 - [x] Ignore stale queued progress updates after an import completes so final totals stay visible.
 - [x] Verify build/tests after the duplicate detection fix.
+
+## Streaming media scan UI
+
+- [x] Add per-item scan progress from media libraries so "Show media" can populate the window while MTP enumeration is still running.
+- [x] Keep scan work off the UI thread and marshal only collection/status updates through the WinUI dispatcher.
+- [x] Verify build/tests after the streaming scan change.
 
 ## Flat destination import
 
@@ -138,4 +150,24 @@ Goal: Rework the WinUI shell toward an iTunes-style desktop utility: quiet toolb
 - [x] Clear old phone media/progress/report state when the selected device changes.
 - [x] Clear previous import state at the start of a new scan.
 - [x] Treat serial/manufacturer/transport changes as device changes in USB polling.
+- [x] Verify build/tests and restart the app.
+
+## Preserve original file dates on import
+
+- [x] Carry source filesystem timestamps through scanned media metadata.
+- [x] Apply source timestamps to imported destination files after successful copy.
+- [x] Add regression coverage for preserved destination timestamps.
+- [x] Verify build/tests after the timestamp preservation change.
+
+## MTP scan root fallback
+
+- [x] Do not stop iPhone scanning at the first existing `DCIM` folder.
+- [x] Scan storage-root and DCIM candidates with duplicate path filtering.
+- [x] Verify build/tests and restart the app.
+
+## Scan busy UI
+
+- [x] Add explicit scanning state separate from generic busy/import state.
+- [x] Show scan progress indicators while media discovery is running.
+- [x] Disable scan/refresh buttons immediately during scanning.
 - [x] Verify build/tests and restart the app.
