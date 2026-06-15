@@ -85,13 +85,19 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         get => _selectedDevice;
         set
         {
-            if (_selectedDevice == value)
+            if (IsSameDeviceSession(_selectedDevice, value))
             {
                 return;
             }
             _selectedDevice = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsDeviceReady));
+            if (!IsBusy)
+            {
+                ResetDeviceSessionState(value is null
+                    ? "Устройство отключено."
+                    : $"Готово к сканированию: {value.DisplayName}");
+            }
             UpdateStatusFromDevice();
             UpdateCommands();
         }
@@ -300,6 +306,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         }
 
         IsBusy = true;
+        ResetDeviceSessionState($"Сканируем: {selectedDevice.DisplayName}");
         AddLog("scan: старт");
         AddLog($"scan: устройство = {selectedDevice.DisplayName}, transport = {selectedDevice.Transport ?? "USB"}, trusted = {selectedDevice.IsTrusted}");
         AddLog($"scan: источник = {(selectedDevice.DeviceId.StartsWith("mtp:", StringComparison.Ordinal) ? "real iPhone MTP/DCIM" : "mock folder source")}");
@@ -687,6 +694,44 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectionSummary));
         OnPropertyChanged(nameof(CanScan));
         OnPropertyChanged(nameof(CanImport));
+    }
+
+    private void ResetDeviceSessionState(string progressText)
+    {
+        Interlocked.Increment(ref _progressRunVersion);
+        _scanCts?.Cancel();
+        _importCts?.Cancel();
+        IsPaused = false;
+        OverallProgress = 0;
+        CurrentFileProgress = 0;
+        CurrentFileName = string.Empty;
+        ProgressText = progressText;
+        LastReport = "нет отчёта";
+        ImportSummary = "Сначала покажите медиа для текущего телефона.";
+
+        foreach (var item in MediaItems)
+        {
+            item.PropertyChanged -= OnItemSelectionChanged;
+        }
+
+        MediaItems.Clear();
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(SelectedBytes));
+        OnPropertyChanged(nameof(SelectionSummary));
+        UpdateCommands();
+    }
+
+    private static bool IsSameDeviceSession(DeviceInfo? previous, DeviceInfo? next)
+    {
+        if (previous is null || next is null)
+        {
+            return previous is null && next is null;
+        }
+
+        return string.Equals(previous.DeviceId, next.DeviceId, StringComparison.Ordinal)
+            && string.Equals(previous.SerialNumber, next.SerialNumber, StringComparison.Ordinal)
+            && string.Equals(previous.DisplayName, next.DisplayName, StringComparison.Ordinal)
+            && previous.IsTrusted == next.IsTrusted;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

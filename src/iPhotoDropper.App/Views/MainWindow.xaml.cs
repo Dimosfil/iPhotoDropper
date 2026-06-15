@@ -2,8 +2,10 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using iPhotoDropper.App.ViewModels;
 using iPhotoDropper.Core.Models;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -16,6 +18,7 @@ public sealed partial class MainWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
         Title = "iPhotoDropper";
+        ConfigureWindow();
 
         ViewModel.PropertyChanged += OnViewModelChanged;
         ViewModel.MediaItems.CollectionChanged += OnViewModelCollectionChanged;
@@ -25,12 +28,25 @@ public sealed partial class MainWindow : Window
     }
 
     public TransferViewModel ViewModel { get; }
+
     private string _destinationFilesText = "Список скопированных файлов обновляется...";
     private string? _destinationFilesFolder;
     private bool _destinationFilesRefreshRunning;
     private DateTimeOffset _lastDestinationFilesRefresh = DateTimeOffset.MinValue;
     private ExistingFileAction? _existingFileActionForAll;
     private bool _uiUpdateQueued;
+    private bool _updatingUi;
+
+    private void ConfigureWindow()
+    {
+        AppWindow.Resize(new SizeInt32(1180, 780));
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsResizable = true;
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
+        }
+    }
 
     private async void OnBrowseDestination(object sender, RoutedEventArgs e)
     {
@@ -94,6 +110,32 @@ public sealed partial class MainWindow : Window
         UpdateUi();
     }
 
+    private void OnFilterChanged(object sender, RoutedEventArgs e)
+    {
+        if (_updatingUi)
+        {
+            return;
+        }
+
+        ViewModel.CopyPhotos = PhotosCheckBox.IsChecked == true;
+        ViewModel.CopyVideos = VideosCheckBox.IsChecked == true;
+        ViewModel.CopyOnlyNew = CopyOnlyNewCheckBox.IsChecked == true;
+        ViewModel.OrganizeByDate = OrganizeByDateCheckBox.IsChecked == true;
+        UpdateUi();
+    }
+
+    private void OnMaxSizeTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_updatingUi)
+        {
+            return;
+        }
+
+        ViewModel.MaxFileSizeMbText = string.IsNullOrWhiteSpace(MaxSizeTextBox.Text)
+            ? null
+            : MaxSizeTextBox.Text.Trim();
+    }
+
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
         QueueUpdateUi();
@@ -121,36 +163,52 @@ public sealed partial class MainWindow : Window
 
     private void UpdateUi()
     {
-        DeviceStatusText.Text = ViewModel.DeviceStatus;
-        DeviceDetailsTextBlock.Text = RenderDeviceDetails();
-        DestinationTextBlock.Text = $"Папка: {ViewModel.DestinationFolder}";
-        ProgressTextBlock.Text = $"Статус: {ViewModel.ProgressText} | общий {ViewModel.OverallProgress}% | файл {ViewModel.CurrentFileProgress}%";
-        CurrentFileTextBlock.Text = string.IsNullOrWhiteSpace(ViewModel.CurrentFileName)
-            ? "Текущий файл: нет"
-            : $"Текущий файл: {ViewModel.CurrentFileName}";
-        OverallProgressLabelTextBlock.Text = $"Общий прогресс: {ViewModel.OverallProgress}%";
-        OverallProgressBarTextBlock.Text = RenderProgressBar(ViewModel.OverallProgress);
-        CurrentFileProgressLabelTextBlock.Text = $"Прогресс файла: {ViewModel.CurrentFileProgress}%";
-        CurrentFileProgressBarTextBlock.Text = RenderProgressBar(ViewModel.CurrentFileProgress);
-        CurrentFileProgressDetailsTextBlock.Text = string.IsNullOrWhiteSpace(ViewModel.CurrentFileName)
-            ? "Текущий файл: нет"
-            : $"Текущий файл: {ViewModel.CurrentFileName} | {ViewModel.ProgressText}";
-        ProgressBarTextBlock.Text =
-            "Общий: " + RenderProgressBar(ViewModel.OverallProgress) +
-            Environment.NewLine +
-            "Файл:  " + RenderProgressBar(ViewModel.CurrentFileProgress);
-        LastReportTextBlock.Text = $"Отчет: {ViewModel.LastReport}{Environment.NewLine}{ViewModel.ImportSummary}";
-        SetTextIfChanged(MediaFilesTextBox, RenderMedia());
-        RefreshDestinationFilesIfNeeded();
-        SetTextIfChanged(DestinationFilesTextBox, _destinationFilesText);
-        SetTextIfChanged(ScanLogTextBox, RenderLog());
-        ScanLogTextBox.SelectionStart = ScanLogTextBox.Text.Length;
+        _updatingUi = true;
+        try
+        {
+            DeviceStatusText.Text = ViewModel.DeviceStatus;
+            DeviceDetailsTextBlock.Text = RenderDeviceDetails();
+            DestinationTextBlock.Text = $"Папка: {ViewModel.DestinationFolder}";
+            SelectionSummaryTextBlock.Text = ViewModel.MediaItems.Count == 0
+                ? "Медиа еще не просканированы"
+                : ViewModel.SelectionSummary;
 
-        ScanButton.IsEnabled = ViewModel.ScanCommand.CanExecute(null);
-        ImportButton.IsEnabled = ViewModel.ImportCommand.CanExecute(null);
-        PauseButton.IsEnabled = ViewModel.PauseCommand.CanExecute(null);
-        ResumeButton.IsEnabled = ViewModel.ResumeCommand.CanExecute(null);
-        CancelButton.IsEnabled = ViewModel.CancelCommand.CanExecute(null);
+            ProgressTextBlock.Text = $"Статус: {ViewModel.ProgressText}";
+            CurrentFileTextBlock.Text = string.IsNullOrWhiteSpace(ViewModel.CurrentFileName)
+                ? "Текущий файл: нет"
+                : $"Текущий файл: {ViewModel.CurrentFileName}";
+            ProgressBarTextBlock.Text = $"{ViewModel.OverallProgress}% общий / {ViewModel.CurrentFileProgress}% файл";
+            OverallProgressLabelTextBlock.Text = $"Общий прогресс: {ViewModel.OverallProgress}%";
+            OverallProgressBarTextBlock.Text = RenderProgressBar(ViewModel.OverallProgress);
+            CurrentFileProgressLabelTextBlock.Text = $"Прогресс файла: {ViewModel.CurrentFileProgress}%";
+            CurrentFileProgressBarTextBlock.Text = RenderProgressBar(ViewModel.CurrentFileProgress);
+            CurrentFileProgressDetailsTextBlock.Text = string.IsNullOrWhiteSpace(ViewModel.CurrentFileName)
+                ? "Текущий файл: нет"
+                : $"Текущий файл: {ViewModel.CurrentFileName} | {ViewModel.ProgressText}";
+            LastReportTextBlock.Text = $"Отчет: {ViewModel.LastReport}{Environment.NewLine}{ViewModel.ImportSummary}";
+
+            PhotosCheckBox.IsChecked = ViewModel.CopyPhotos;
+            VideosCheckBox.IsChecked = ViewModel.CopyVideos;
+            CopyOnlyNewCheckBox.IsChecked = ViewModel.CopyOnlyNew;
+            OrganizeByDateCheckBox.IsChecked = ViewModel.OrganizeByDate;
+            SetTextIfChanged(MaxSizeTextBox, ViewModel.MaxFileSizeMbText ?? string.Empty);
+
+            SetTextIfChanged(MediaFilesTextBox, RenderMedia());
+            RefreshDestinationFilesIfNeeded();
+            SetTextIfChanged(DestinationFilesTextBox, _destinationFilesText);
+            SetTextIfChanged(ScanLogTextBox, RenderLog());
+            ScanLogTextBox.SelectionStart = ScanLogTextBox.Text.Length;
+
+            ScanButton.IsEnabled = ViewModel.ScanCommand.CanExecute(null);
+            ImportButton.IsEnabled = ViewModel.ImportCommand.CanExecute(null);
+            PauseButton.IsEnabled = ViewModel.PauseCommand.CanExecute(null);
+            ResumeButton.IsEnabled = ViewModel.ResumeCommand.CanExecute(null);
+            CancelButton.IsEnabled = ViewModel.CancelCommand.CanExecute(null);
+        }
+        finally
+        {
+            _updatingUi = false;
+        }
     }
 
     private async Task<ExistingFileAction> ResolveExistingFileConflictAsync(ExistingFileConflict conflict, CancellationToken token)
@@ -173,7 +231,7 @@ public sealed partial class MainWindow : Window
                 {
                     Text =
                         $"Уже есть: {Path.GetFileName(conflict.DestinationPath)}\n" +
-                        $"В папке: {FormatBytes(conflict.ExistingSizeBytes)}, изменён {conflict.ExistingModifiedAt.LocalDateTime:g}\n" +
+                        $"В папке: {FormatBytes(conflict.ExistingSizeBytes)}, изменен {conflict.ExistingModifiedAt.LocalDateTime:g}\n" +
                         $"С iPhone: {conflict.SourceFileName}, {FormatBytes(conflict.SourceSizeBytes)}",
                     TextWrapping = TextWrapping.Wrap
                 };
@@ -227,7 +285,10 @@ public sealed partial class MainWindow : Window
         }
 
         var device = ViewModel.SelectedDevice;
-        var source = device.DeviceId.StartsWith("mtp:", StringComparison.Ordinal) ? "реальный iPhone через USB/MTP" : "mock-источник";
+        var source = device.DeviceId.StartsWith("mtp:", StringComparison.Ordinal)
+            ? "реальный iPhone через USB/MTP"
+            : "mock-источник";
+
         return string.Join(Environment.NewLine, new[]
         {
             $"Устройство: {device.DisplayName}",
@@ -250,38 +311,9 @@ public sealed partial class MainWindow : Window
             .Take(1000)
             .Select((x, index) => $"{index + 1,3}. {x.FileName,-32} {x.TypeText,-8} {x.SizeText,10} {x.CapturedText}");
 
-        return $"Медиа iPhone: {ViewModel.MediaItems.Count} файлов / {FormatBytes(totalBytes)}" + Environment.NewLine + string.Join(Environment.NewLine, lines);
-    }
-
-    private string RenderDestinationFiles()
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(ViewModel.DestinationFolder) || !Directory.Exists(ViewModel.DestinationFolder))
-            {
-                return "Папка назначения пока не создана.";
-            }
-
-            var files = Directory
-                .EnumerateFiles(ViewModel.DestinationFolder, "*.*", SearchOption.AllDirectories)
-                .OrderByDescending(File.GetLastWriteTime)
-                .Take(1000)
-                .Select((file, index) =>
-                {
-                    var info = new FileInfo(file);
-                    var relative = Path.GetRelativePath(ViewModel.DestinationFolder, file);
-                    return $"{index + 1,3}. {relative,-38} {FormatBytes(info.Length),10}";
-                })
-                .ToArray();
-
-            return files.Length == 0
-                ? "Скопированные файлы: пока пусто."
-                : "Скопированные файлы:" + Environment.NewLine + string.Join(Environment.NewLine, files);
-        }
-        catch (Exception ex)
-        {
-            return $"Не удалось прочитать папку назначения: {ex.Message}";
-        }
+        return $"Медиа iPhone: {ViewModel.MediaItems.Count} файлов / {FormatBytes(totalBytes)}" +
+            Environment.NewLine +
+            string.Join(Environment.NewLine, lines);
     }
 
     private void RefreshDestinationFilesIfNeeded()
@@ -369,10 +401,10 @@ public sealed partial class MainWindow : Window
 
     private static string RenderProgressBar(int percent)
     {
-        const int width = 30;
+        const int width = 28;
         var boundedPercent = Math.Clamp(percent, 0, 100);
         var filled = boundedPercent * width / 100;
-        return "[" + new string('#', filled) + new string('.', width - filled) + $"] " + $"{boundedPercent,3}%";
+        return "[" + new string('#', filled) + new string('.', width - filled) + $"] {boundedPercent,3}%";
     }
 
     private string RenderLog()

@@ -161,7 +161,7 @@ public sealed class HybridUsbDeviceService : IUsbDeviceService
 
             foreach (var changed in desiredDevices.Where(next =>
                          previous.FirstOrDefault(prev => prev.DeviceId == next.DeviceId) is { } prev
-                         && (prev.IsTrusted != next.IsTrusted || prev.DisplayName != next.DisplayName)))
+                         && HasDeviceChanged(prev, next)))
             {
                 DeviceDisconnected?.Invoke(this, new DeviceConnectionEventArgs(
                     new DeviceInfo(changed.DeviceId, changed.DisplayName, false, changed.IsTrusted)
@@ -179,5 +179,14 @@ public sealed class HybridUsbDeviceService : IUsbDeviceService
         {
             _sync.Release();
         }
+    }
+
+    private static bool HasDeviceChanged(DeviceInfo previous, DeviceInfo next)
+    {
+        return previous.IsTrusted != next.IsTrusted
+            || !string.Equals(previous.DisplayName, next.DisplayName, StringComparison.Ordinal)
+            || !string.Equals(previous.SerialNumber, next.SerialNumber, StringComparison.Ordinal)
+            || !string.Equals(previous.Manufacturer, next.Manufacturer, StringComparison.Ordinal)
+            || !string.Equals(previous.Transport, next.Transport, StringComparison.Ordinal);
     }
 }

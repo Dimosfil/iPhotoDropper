@@ -5,352 +5,422 @@
 
     <Grid
         x:Name="Root"
-        Padding="20"
-        RowSpacing="16"
-        Background="#FFF5F5F7">
+        MinWidth="980"
+        MinHeight="680"
+        Background="#F5F5F7">
+        <Grid.Resources>
+            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F5F5F7" />
+            <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#EDEDF1" />
+            <SolidColorBrush x:Key="HairlineBrush" Color="#D9D9DE" />
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1D1D1F" />
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#6E6E73" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#007AFF" />
+
+            <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+                <Setter Property="MinHeight" Value="34" />
+                <Setter Property="Padding" Value="13,6" />
+                <Setter Property="CornerRadius" Value="7" />
+                <Setter Property="Background" Value="#F3F3F6" />
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                <Setter Property="BorderBrush" Value="#D6D6DC" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            </Style>
+
+            <Style x:Key="PaneTextBoxStyle" TargetType="TextBox">
+                <Setter Property="AcceptsReturn" Value="True" />
+                <Setter Property="Background" Value="#FBFBFD" />
+                <Setter Property="BorderBrush" Value="#DADAE0" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="7" />
+                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="IsReadOnly" Value="True" />
+                <Setter Property="Padding" Value="10" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
+                <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="58" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+        <Border
+            Background="#FCFCFD"
+            BorderBrush="{StaticResource HairlineBrush}"
+            BorderThickness="0,0,0,1">
+            <Grid Padding="18,0" ColumnSpacing="18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock
-                    Text="iPhotoDropper"
-                    FontSize="30"
-                    FontWeight="SemiBold"
-                    Foreground="#FF1D1D1F" />
-                <TextBlock
-                    Text="Импорт фото и видео с iPhone"
-                    FontSize="14"
-                    Foreground="#FF6E6E73" />
-            </StackPanel>
-
-            <Border
-                Grid.Column="1"
-                Padding="14,8"
-                Background="White"
-                BorderBrush="#1F000000"
-                BorderThickness="1"
-                CornerRadius="8"
-                VerticalAlignment="Center">
-                <StackPanel Spacing="2">
-                    <TextBlock Text="Состояние" FontSize="11" Foreground="#FF6E6E73" />
-                    <TextBlock x:Name="DeviceStatusText" FontSize="14" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
+                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                    <Border Width="12" Height="12" Background="#FF605C" CornerRadius="6" />
+                    <Border Width="12" Height="12" Background="#FFBD44" CornerRadius="6" />
+                    <Border Width="12" Height="12" Background="#00CA4E" CornerRadius="6" />
                 </StackPanel>
-            </Border>
-        </Grid>
 
-        <Grid Grid.Row="1" ColumnSpacing="16">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock
+                        Text="iPhotoDropper"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Foreground="{StaticResource PrimaryTextBrush}" />
+                    <TextBlock
+                        Text="Импорт фото и видео с iPhone"
+                        FontSize="12"
+                        Foreground="{StaticResource SecondaryTextBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button
+                        x:Name="RefreshButton"
+                        Content="Обновить"
+                        Click="OnRefreshClick"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button
+                        x:Name="BrowseButton"
+                        Content="Папка..."
+                        Click="OnBrowseDestination"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button
+                        x:Name="ImportButton"
+                        Content="Импорт"
+                        Click="OnImportClick"
+                        Style="{StaticResource PrimaryButtonStyle}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="320" />
-                <ColumnDefinition Width="*" MinWidth="320" />
+                <ColumnDefinition Width="236" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border
-                Background="White"
-                BorderBrush="#1F000000"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="16">
-                <Grid RowSpacing="12">
+                Background="{StaticResource SidebarBackgroundBrush}"
+                BorderBrush="{StaticResource HairlineBrush}"
+                BorderThickness="0,0,1,0">
+                <Grid Padding="16,18" RowSpacing="18">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Spacing="2">
-                        <TextBlock Text="Источник" FontSize="12" Foreground="#FF6E6E73" />
-                        <TextBlock Text="iPhone" FontSize="22" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            Text="Медиатека"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource SecondaryTextBrush}" />
+                        <Border
+                            Padding="10,8"
+                            Background="#FFFFFF"
+                            BorderBrush="#D8D8DE"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="▣" FontSize="17" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                    <TextBlock Text="iPhone" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock x:Name="DeviceStatusText" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </StackPanel>
 
-                    <TextBlock
-                        x:Name="DeviceDetailsTextBlock"
-                        Grid.Row="1"
-                        Foreground="#FF1D1D1F"
-                        TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="1" Spacing="10">
+                        <TextBlock
+                            Text="Фильтры импорта"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource SecondaryTextBrush}" />
+                        <CheckBox x:Name="PhotosCheckBox" Content="Фото" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                        <CheckBox x:Name="VideosCheckBox" Content="Видео" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                        <CheckBox x:Name="CopyOnlyNewCheckBox" Content="Только новые" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                        <CheckBox x:Name="OrganizeByDateCheckBox" Content="Папки по датам" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="Макс. размер, MB" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBox
+                                x:Name="MaxSizeTextBox"
+                                PlaceholderText="без лимита"
+                                TextChanged="OnMaxSizeTextChanged"
+                                Background="#FFFFFF"
+                                BorderBrush="#D8D8DE"
+                                CornerRadius="7"
+                                Padding="8,5" />
+                        </StackPanel>
+                    </StackPanel>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-                        <Button
-                            x:Name="RefreshButton"
-                            Content="Обновить"
-                            Click="OnRefreshClick"
-                            Background="#FFE8E8ED"
-                            Foreground="#FF1D1D1F"
-                            BorderThickness="0"
-                            CornerRadius="8"
-                            Padding="14,8"
-                            MinHeight="36" />
+                    <Border
+                        Grid.Row="2"
+                        Padding="12"
+                        Background="#FFFFFF"
+                        BorderBrush="#D8D8DE"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <Grid RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TextBlock
+                                Text="Устройство"
+                                FontWeight="SemiBold"
+                                Foreground="{StaticResource PrimaryTextBrush}" />
+                            <TextBlock
+                                x:Name="DeviceDetailsTextBlock"
+                                Grid.Row="1"
+                                Foreground="{StaticResource SecondaryTextBrush}"
+                                FontSize="12"
+                                TextWrapping="Wrap" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="3" Spacing="8">
                         <Button
                             x:Name="ScanButton"
                             Content="Показать медиа"
                             Click="OnScanClick"
-                            Background="#FF007AFF"
-                            Foreground="White"
-                            BorderThickness="0"
-                            CornerRadius="8"
-                            Padding="16,8"
-                            MinHeight="36" />
-                    </StackPanel>
-
-                    <TextBox
-                        x:Name="MediaFilesTextBox"
-                        Grid.Row="3"
-                        AcceptsReturn="True"
-                        Background="#FFFDFDFE"
-                        BorderBrush="#1A000000"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        FontFamily="Cascadia Mono, Consolas"
-                        FontSize="13"
-                        Height="360"
-                        IsReadOnly="True"
-                        Padding="12"
-                        TextWrapping="NoWrap"
-                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto" />
-                </Grid>
-            </Border>
-
-            <Border
-                Grid.Column="1"
-                Background="White"
-                BorderBrush="#1F000000"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="16">
-                <Grid RowSpacing="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Spacing="2">
-                        <TextBlock Text="Назначение" FontSize="12" Foreground="#FF6E6E73" />
-                        <TextBlock Text="Куда копируем" FontSize="22" FontWeight="SemiBold" Foreground="#FF1D1D1F" />
-                    </StackPanel>
-
-                    <TextBlock
-                        x:Name="DestinationTextBlock"
-                        Grid.Row="1"
-                        Foreground="#FF1D1D1F"
-                        TextWrapping="Wrap" />
-
-                    <Grid Grid.Row="2" RowSpacing="8">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button
-                                x:Name="BrowseButton"
-                                Content="Выбрать папку"
-                                Click="OnBrowseDestination"
-                                Background="#FFE8E8ED"
-                                Foreground="#FF1D1D1F"
-                                BorderThickness="0"
-                                CornerRadius="8"
-                                Padding="14,8"
-                                MinHeight="36" />
-                            <Button
-                                x:Name="ImportButton"
-                                Content="Старт"
-                                Click="OnImportClick"
-                                Background="#FF007AFF"
-                                Foreground="White"
-                                BorderThickness="0"
-                                CornerRadius="8"
-                                Padding="16,8"
-                                MinHeight="36" />
+                            HorizontalAlignment="Stretch"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Button
                                 x:Name="PauseButton"
                                 Content="Пауза"
                                 Click="OnPauseClick"
-                                Background="#FFE8E8ED"
-                                Foreground="#FF1D1D1F"
-                                BorderThickness="0"
-                                CornerRadius="8"
-                                Padding="14,8"
-                                MinHeight="36" />
-                        </StackPanel>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                                Style="{StaticResource ToolbarButtonStyle}" />
                             <Button
                                 x:Name="ResumeButton"
+                                Grid.Column="1"
                                 Content="Продолжить"
                                 Click="OnResumeClick"
-                                Background="#FFE8E8ED"
-                                Foreground="#FF1D1D1F"
-                                BorderThickness="0"
-                                CornerRadius="8"
-                                Padding="14,8"
-                                MinHeight="36" />
-                            <Button
-                                x:Name="CancelButton"
-                                Content="Отмена"
-                                Click="OnCancelClick"
-                                Background="#FFE8E8ED"
-                                Foreground="#FF1D1D1F"
-                                BorderThickness="0"
-                                CornerRadius="8"
-                                Padding="14,8"
-                                MinHeight="36" />
-                        </StackPanel>
-                    </Grid>
+                                Style="{StaticResource ToolbarButtonStyle}" />
+                        </Grid>
+                        <Button
+                            x:Name="CancelButton"
+                            Content="Отмена"
+                            Click="OnCancelClick"
+                            HorizontalAlignment="Stretch"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                    <Grid Grid.Row="3" RowSpacing="6">
+            <Grid Grid.Column="1" Padding="20" RowSpacing="14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="172" />
+                </Grid.RowDefinitions>
+
+                <Border
+                    Padding="14,12"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource HairlineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid RowSpacing="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <TextBlock
-                            x:Name="OverallProgressLabelTextBlock"
-                            FontWeight="SemiBold"
-                            Foreground="#FF1D1D1F"
-                            TextWrapping="Wrap" />
-                        <TextBlock
-                            x:Name="OverallProgressBarTextBlock"
-                            Grid.Row="1"
-                            FontFamily="Cascadia Mono, Consolas"
-                            FontSize="15"
-                            Width="330"
-                            MinHeight="22"
-                            HorizontalAlignment="Left"
-                            Foreground="#FF007AFF"
-                            TextWrapping="NoWrap" />
-                        <TextBlock
-                            x:Name="CurrentFileProgressLabelTextBlock"
-                            Grid.Row="2"
-                            Margin="0,8,0,0"
-                            FontWeight="SemiBold"
-                            Foreground="#FF1D1D1F"
-                            TextWrapping="Wrap" />
-                        <TextBlock
-                            x:Name="CurrentFileProgressBarTextBlock"
-                            Grid.Row="3"
-                            FontFamily="Cascadia Mono, Consolas"
-                            FontSize="15"
-                            Width="330"
-                            MinHeight="22"
-                            HorizontalAlignment="Left"
-                            Foreground="#FF007AFF"
-                            TextWrapping="NoWrap" />
+
+                        <Grid ColumnSpacing="18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock
+                                    x:Name="CurrentFileTextBlock"
+                                    FontWeight="SemiBold"
+                                    Foreground="{StaticResource PrimaryTextBrush}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    x:Name="ProgressTextBlock"
+                                    FontSize="12"
+                                    Foreground="{StaticResource SecondaryTextBrush}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock
+                                x:Name="ProgressBarTextBlock"
+                                Grid.Column="1"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                Foreground="{StaticResource SecondaryTextBrush}"
+                                VerticalAlignment="Top" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="5">
+                                <TextBlock x:Name="OverallProgressLabelTextBlock" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
+                                <TextBlock
+                                    x:Name="OverallProgressBarTextBlock"
+                                    FontFamily="Cascadia Mono, Consolas"
+                                    FontSize="13"
+                                    Foreground="{StaticResource AccentBrush}"
+                                    TextWrapping="NoWrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="5">
+                                <TextBlock x:Name="CurrentFileProgressLabelTextBlock" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
+                                <TextBlock
+                                    x:Name="CurrentFileProgressBarTextBlock"
+                                    FontFamily="Cascadia Mono, Consolas"
+                                    FontSize="13"
+                                    Foreground="{StaticResource AccentBrush}"
+                                    TextWrapping="NoWrap" />
+                            </StackPanel>
+                        </Grid>
+
                         <TextBlock
                             x:Name="CurrentFileProgressDetailsTextBlock"
-                            Grid.Row="4"
+                            Grid.Row="2"
                             FontSize="12"
-                            Foreground="#FF6E6E73"
-                            MinHeight="18"
+                            Foreground="{StaticResource SecondaryTextBrush}"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
                     </Grid>
+                </Border>
 
-                    <TextBox
-                        x:Name="DestinationFilesTextBox"
-                        Grid.Row="4"
-                        AcceptsReturn="True"
-                        Background="#FFFDFDFE"
-                        BorderBrush="#1A000000"
+                <Grid Grid.Row="1" ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="330" />
+                        <ColumnDefinition Width="*" MinWidth="330" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="{StaticResource HairlineBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
-                        FontFamily="Cascadia Mono, Consolas"
-                        FontSize="13"
-                        Height="280"
-                        IsReadOnly="True"
-                        Padding="12"
-                        TextWrapping="NoWrap"
-                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto" />
-                </Grid>
-            </Border>
-        </Grid>
+                        Padding="14">
+                        <Grid RowSpacing="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-        <Border
-            Grid.Row="2"
-            Background="White"
-            BorderBrush="#1F000000"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="16">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="На этом iPhone" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock x:Name="SelectionSummaryTextBlock" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
+                                </StackPanel>
+                                <Button
+                                    Grid.Column="1"
+                                    Content="Обновить"
+                                    Click="OnScanClick"
+                                    Style="{StaticResource ToolbarButtonStyle}" />
+                            </Grid>
 
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="3">
-                        <TextBlock
-                            x:Name="CurrentFileTextBlock"
-                            FontWeight="SemiBold"
-                            Foreground="#FF1D1D1F"
-                            TextWrapping="Wrap" />
-                        <TextBlock
-                            x:Name="ProgressTextBlock"
-                            Foreground="#FF6E6E73"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                    <TextBlock
-                        x:Name="ProgressBarTextBlock"
+                            <TextBlock
+                                Grid.Row="1"
+                                Text="Список прокручивается вертикально и горизонтально, чтобы длинные имена и пути не ломали окно."
+                                FontSize="12"
+                                Foreground="{StaticResource SecondaryTextBrush}"
+                                TextWrapping="Wrap" />
+
+                            <TextBox
+                                x:Name="MediaFilesTextBox"
+                                Grid.Row="2"
+                                MinHeight="240"
+                                Style="{StaticResource PaneTextBoxStyle}" />
+                        </Grid>
+                    </Border>
+
+                    <Border
                         Grid.Column="1"
-                        FontFamily="Cascadia Mono, Consolas"
-                        FontSize="12"
-                        Width="290"
-                        MinHeight="36"
-                        HorizontalAlignment="Right"
-                        Foreground="#FF6E6E73"
-                        TextWrapping="NoWrap" />
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="{StaticResource HairlineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14">
+                        <Grid RowSpacing="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Куда копируем" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock
+                                    x:Name="DestinationTextBlock"
+                                    FontSize="12"
+                                    Foreground="{StaticResource SecondaryTextBrush}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+                            </StackPanel>
+
+                            <TextBlock
+                                x:Name="LastReportTextBlock"
+                                Grid.Row="1"
+                                Foreground="{StaticResource PrimaryTextBrush}"
+                                FontSize="12"
+                                MinHeight="34"
+                                TextWrapping="Wrap" />
+
+                            <TextBox
+                                x:Name="DestinationFilesTextBox"
+                                Grid.Row="2"
+                                MinHeight="240"
+                                Style="{StaticResource PaneTextBoxStyle}" />
+                        </Grid>
+                    </Border>
                 </Grid>
 
-                <TextBlock
-                    x:Name="LastReportTextBlock"
-                    Grid.Row="1"
-                    Foreground="#FF1D1D1F"
-                    MinHeight="44"
-                    TextWrapping="Wrap" />
-
-                <TextBlock
+                <Border
                     Grid.Row="2"
-                    Text="Журнал сканирования и копирования"
-                    FontWeight="SemiBold"
-                    Foreground="#FF1D1D1F" />
-
-                <TextBox
-                    x:Name="ScanLogTextBox"
-                    Grid.Row="3"
-                    AcceptsReturn="True"
-                    Background="#FFFDFDFE"
-                    BorderBrush="#1A000000"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource HairlineBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
-                    FontFamily="Cascadia Mono, Consolas"
-                    FontSize="13"
-                    Height="150"
-                    IsReadOnly="True"
-                    Padding="12"
-                    TextWrapping="NoWrap"
-                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                    Padding="14">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Журнал" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                        <TextBox
+                            x:Name="ScanLogTextBox"
+                            Grid.Row="1"
+                            MinHeight="96"
+                            Style="{StaticResource PaneTextBoxStyle}" />
+                    </Grid>
+                </Border>
             </Grid>
-        </Border>
+        </Grid>
     </Grid>
 </Window>

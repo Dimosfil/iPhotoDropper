@@ -118,8 +118,24 @@ Launch note:
 - [x] Use actual destination files for duplicate skips so previous subfolder imports do not block a flat retry.
 - [x] Verify build/tests after the flat import change.
 
+## iTunes-style UI refresh
+
+Goal: Rework the WinUI shell toward an iTunes-style desktop utility: quiet toolbar, source sidebar, scrollable panes, resizable window, clearer import controls, and stable progress/status surfaces.
+
+- [x] Replace the two-card layout with a toolbar/sidebar/content structure while preserving the crash-safe TextBox-based media/log views.
+- [x] Add responsive sizing/initial window sizing so the app can be resized without clipping primary controls.
+- [x] Keep stable text progress bars after WinUI `ProgressBar` reproduced the native startup crash.
+- [x] Verify build/tests after UI and window changes.
+
 ## Windows installer
 
 - [x] Add an Inno Setup installer script for the WinUI desktop app.
 - [x] Add a project-local packaging command that publishes the app and compiles the installer.
 - [x] Verify the installer build with local Inno Setup.
+
+## Device session reset
+
+- [x] Clear old phone media/progress/report state when the selected device changes.
+- [x] Clear previous import state at the start of a new scan.
+- [x] Treat serial/manufacturer/transport changes as device changes in USB polling.
+- [x] Verify build/tests and restart the app.
