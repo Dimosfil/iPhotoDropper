@@ -77,12 +77,41 @@ Do not blindly migrate all Markdown into SQLite. When Markdown memory becomes
 too large to read cheaply, introduce or rebuild the SQLite memory/index and keep
 Markdown as the concise reviewable export.
 
+## RAG System Structure
+
+When the project needs retrieval that can grow beyond Markdown and SQLite FTS,
+use:
+
+```text
+tools/project-memory/rag-system.json
+```
+
+Keep vector stores such as Chroma, Qdrant, and pgvector behind retrieval
+adapters so prompts and agent workflows do not depend on one storage backend.
+Before enabling vector retrieval, prepare semantic-ready chunks and embedding
+metadata. Keep generated files such as
+`tools/project-memory/semantic-corpus.jsonl` ignored.
+
+For a local semantic MVP, build Chroma from exported chunks:
+
+```powershell
+python .\tools\project-memory\build_project_memory_index.py rebuild
+python .\tools\project-memory\build_project_memory_index.py export-chunks
+uv run --with chromadb python .\tools\project-memory\build_chroma_index.py rebuild
+```
+
 ## Suggested Files
 
 - `pending-tasks.md`: active project-wide plans and multi-step work.
 - `STUDY_PLAN.md`: roadmap for understanding the project.
 - `git-preferences.json`: commit-message language preferences.
 - `system-preferences.json`: agent user-facing working language preferences.
+- `rag-system.json`: RAG source, exclusion, retrieval, context-packet, and
+  writeback configuration.
+- `semantic-retrieval-evals.md`: small eval set for semantic and hybrid
+  retrieval quality.
+- `build_chroma_index.py`: optional local Chroma adapter when semantic
+  retrieval is enabled.
 - `NOTES.md`: reviewable export of durable notes from local agent memory.
 - `architecture.md`: verified architecture notes.
 - `decisions.md`: durable decisions and rationale.

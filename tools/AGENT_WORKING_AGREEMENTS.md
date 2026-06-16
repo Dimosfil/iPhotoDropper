@@ -213,6 +213,10 @@ or:
   test commands and produce a compact verification plan for the current feature,
   bug fix, or release check. Plan first; run checks only when the user asks or
   when the current task already requires verification.
+- Treat `gi install`, `gi инсталл`, `ги инсталл`, and clear typo variants as
+  build-and-installer requests. The task is complete only after the packaging
+  command runs and a current installer artifact is produced or explicitly
+  verified; restore/build/test alone are preliminary checks.
 - Treat a first message that points to a shared instruction library as an
   instruction bootstrap, not as a request to add that library as a dependency.
 - If the user asks to update from a shared instruction library and this project

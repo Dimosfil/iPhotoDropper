@@ -1,5 +1,5 @@
 ﻿{
-    "instruction_kit_version":  "2026.06.11.5",
+    "instruction_kit_version":  "2026.06.16.3",
     "source":  "https://github.com/Dimosfil/general-instructions.git",
     "installed_at":  "2026-06-11T18:39:48+03:00",
     "update_check":  {
@@ -8,6 +8,27 @@
                          "shared_library_path":  "D:/AI/general-instructions",
                          "enabled":  true
                      },
+    "copied_files":  [
+                         "AGENTS.md",
+                         "tools/AGENT_WORKING_AGREEMENTS.md",
+                         "tools/AGENT_RUNBOOK.md",
+                         "tools/agent-start.ps1",
+                         "tools/project-memory/README.md",
+                         "tools/project-memory/build_project_memory_index.py",
+                         "tools/project-memory/build_chroma_index.py",
+                         "tools/project-memory/rag-system.json",
+                         "tools/project-memory/semantic-retrieval-evals.md",
+                         "tools/project-memory/STUDY_PLAN.md",
+                         "tools/project-memory/pending-tasks.md",
+                         "tools/project-memory/git-preferences.json",
+                         "tools/project-memory/system-preferences.json",
+                         "tools/select-project-language.ps1",
+                         "tools/select-git-commit-languages.ps1",
+                         "tools/select-system-language.ps1",
+                         "tools/check-instruction-kit-updates.ps1",
+                         "skills/TODO-skill-name/SKILL.md",
+                         ".gitignore"
+                     ],
     "applied_migrations":  [
                                "2026.05.16.1__add_skill_modules",
                                "2026.05.16.2__add_git_commit_preferences",
@@ -81,24 +102,12 @@
                                "2026.06.11.2__add_feature_workflow_contracts",
                                "2026.06.11.3__add_feature_planning_hierarchy",
                                "2026.06.11.4__clarify_gi_manager_config_service_flow",
-                               "2026.06.11.5__self_apply_and_propagate_accepted_rules"
+                               "2026.06.11.5__self_apply_and_propagate_accepted_rules",
+                               "2026.06.11.6__universal_gi_and_routine_task_manager_sync",
+                               "2026.06.11.7__add_unified_rag_system_structure",
+                               "2026.06.16.1__add_semantic_rag_embedding_step",
+                               "2026.06.16.2__add_local_chroma_adapter",
+                               "2026.06.16.3__require_gi_install_packaging_completion"
                            ],
-    "copied_files":  [
-                         "AGENTS.md",
-                         "tools/AGENT_WORKING_AGREEMENTS.md",
-                         "tools/AGENT_RUNBOOK.md",
-                         "tools/agent-start.ps1",
-                         "tools/project-memory/README.md",
-                         "tools/project-memory/build_project_memory_index.py",
-                         "tools/project-memory/STUDY_PLAN.md",
-                         "tools/project-memory/pending-tasks.md",
-                         "tools/project-memory/git-preferences.json",
-                         "tools/project-memory/system-preferences.json",
-                         "tools/select-project-language.ps1",
-                         "tools/select-git-commit-languages.ps1",
-                         "tools/select-system-language.ps1",
-                         "tools/check-instruction-kit-updates.ps1",
-                         "skills/TODO-skill-name/SKILL.md",
-                         ".gitignore"
-                     ]
+    "last_update_check_at":  "2026-06-16T13:06:29+03:00"
 }

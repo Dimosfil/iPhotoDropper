@@ -41,6 +41,20 @@ project. Use it to restore only the needed context from local instructions,
 handoff summaries, targeted searches, and project memory instead of reading the
 whole repository or printing broad outputs.
 
+When this project needs retrieval that can grow beyond Markdown and SQLite FTS,
+use `tools/project-memory/rag-system.json`. Keep Chroma, Qdrant, pgvector, and
+similar stores behind retrieval adapters so startup, prompt assembly, and memory
+writeback do not depend on one vector database.
+
+Before enabling vector retrieval, prepare semantic-ready chunks, embedding
+metadata, and a small eval set. Keep generated embedding corpora and vector
+indexes ignored when rebuildable, and do not mix embeddings from different
+models in one collection version.
+
+Keep GI agent-runtime neutral. These instructions are for any compatible AI
+agent or assistant, not only Codex. Mention Codex only when a rule is about a
+Codex-specific tool, folder, permission model, app surface, or workflow.
+
 Treat `cached input` as a symptom, not the main optimization target. Keep total
 live context small by starting new sessions for unrelated tasks, using compact
 handoff summaries instead of long investigation history, and splitting multi-step
@@ -237,6 +251,13 @@ Inspect logs:
   config-service is unavailable, no matching service record exists, or the
   guide/contract lacks the requested capability. Do not fall back to `base_url`,
   stale task-manager memory, port scans, sibling projects, or guessed endpoints.
+- Treat task-manager sync commands as routine execution steps after the user has
+  supplied the content or selected workflow. A fast or weaker model may execute
+  them, but it must still follow service discovery, guide, strict contract,
+  documented payload, lifecycle identifiers, readback, and blocker reporting.
+  Do not replace manager API work with `project-memory`, pending-task notes,
+  guessed commands, raw intake receipts, local checklists, or "tell me the exact
+  command" fallback.
 - Treat `gi config service on`, `gi config service off`, `РіРё РєРѕРЅС„РёРі СЃРµСЂРІРёСЃ on`,
   and `РіРё РєРѕРЅС„РёРі СЃРµСЂРІРёСЃ off` as requests to set the current application's
   project-local config-service self-registration flag. `on` means the app
@@ -283,6 +304,13 @@ Inspect logs:
   start or restart the current application using project-local run instructions.
   If the app is running, restart it; if it is not running, start it. Launch in
   the background so focus does not jump away from the user's current window.
+- Treat `gi install`, `gi инсталл`, `ги инсталл`, and clear typo variants as
+  requests to build the current project and produce an installer. Read local
+  build/package instructions, resolve the application version from project
+  metadata or installer contract, run the packaging command, and verify the
+  current installer artifact. `restore`, dependency install, build, and test
+  checks are prerequisites only; do not report `gi install` complete or the
+  project installed/restored when only those checks ran.
 - Treat nested checkouts, vendored repositories, cloned examples, and
   third-party source trees as separate scope. Do not inspect them as part of the
   main project unless the user explicitly asks, the task is about that nested

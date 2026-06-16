@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -15,6 +17,7 @@ from pathlib import Path
 
 DEFAULT_DB = Path("tools/project-memory/project_memory.sqlite")
 MAX_TEXT_BYTES = 512 * 1024
+MAX_CHUNK_CHARS = 4000
 TEXT_EXTENSIONS = {
     ".bat",
     ".cmd",
@@ -37,6 +40,8 @@ TEXT_EXTENSIONS = {
     ".yaml",
     ".yml",
 }
+
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 SKIP_PREFIXES = (
     ".git/",
     "node_modules/",
@@ -110,6 +115,78 @@ def read_text(path: Path) -> tuple[str | None, int, str]:
             return data.decode("cp1251", errors="replace"), len(data), digest
 
 
+def estimate_tokens(text: str) -> int:
+    return max(1, (len(text) + 3) // 4)
+
+
+def content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def update_heading_stack(stack: list[str], line: str) -> list[str]:
+    match = HEADING_RE.match(line.strip())
+    if not match:
+        return stack
+    level = len(match.group(1))
+    title = match.group(2).strip()
+    return stack[: level - 1] + [title]
+
+
+def iter_text_chunks(path: str, text: str, indexed_at: str) -> list[dict[str, object]]:
+    lines = text.splitlines()
+    if not lines:
+        return []
+
+    chunks: list[dict[str, object]] = []
+    current_lines: list[str] = []
+    heading_stack: list[str] = []
+    current_heading = ""
+    start_line = 1
+
+    def flush(end_line: int) -> None:
+        nonlocal current_lines, start_line, current_heading
+        chunk_text = "\n".join(current_lines).strip()
+        if not chunk_text:
+            current_lines = []
+            start_line = end_line + 1
+            current_heading = " > ".join(heading_stack)
+            return
+        chunk_index = len(chunks) + 1
+        chunks.append(
+            {
+                "path": path,
+                "chunk_index": chunk_index,
+                "heading_path": current_heading,
+                "start_line": start_line,
+                "end_line": end_line,
+                "token_estimate": estimate_tokens(chunk_text),
+                "sha256": content_hash(chunk_text),
+                "indexed_at": indexed_at,
+                "content": chunk_text,
+            }
+        )
+        current_lines = []
+        start_line = end_line + 1
+        current_heading = " > ".join(heading_stack)
+
+    for lineno, line in enumerate(lines, start=1):
+        is_heading = path.lower().endswith(".md") and HEADING_RE.match(line.strip())
+        if is_heading and current_lines:
+            flush(lineno - 1)
+        heading_stack = update_heading_stack(heading_stack, line)
+        if is_heading:
+            current_heading = " > ".join(heading_stack)
+            start_line = lineno
+        current_lines.append(line)
+        if sum(len(item) + 1 for item in current_lines) >= MAX_CHUNK_CHARS:
+            flush(lineno)
+
+    if current_lines:
+        flush(len(lines))
+
+    return chunks
+
+
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(db_path)
@@ -162,6 +239,20 @@ def ensure_schema(con: sqlite3.Connection) -> bool:
             body TEXT NOT NULL,
             evidence_paths TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS chunks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            heading_path TEXT NOT NULL,
+            start_line INTEGER NOT NULL,
+            end_line INTEGER NOT NULL,
+            token_estimate INTEGER NOT NULL,
+            sha256 TEXT NOT NULL,
+            indexed_at TEXT NOT NULL,
+            content TEXT NOT NULL,
+            UNIQUE(path, chunk_index)
+        );
         """
     )
     if fts:
@@ -188,9 +279,11 @@ def rebuild(args: argparse.Namespace) -> int:
             con.execute("DROP TABLE IF EXISTS files_fts")
             create_fts_table(con)
         con.execute("DELETE FROM files")
+        con.execute("DELETE FROM chunks")
 
         indexed = 0
         skipped = 0
+        chunk_count = 0
         for rel_path in tracked_paths(root):
             if not should_index(rel_path):
                 skipped += 1
@@ -219,18 +312,43 @@ def rebuild(args: argparse.Namespace) -> int:
                     text,
                 ),
             )
+            for chunk in iter_text_chunks(rel_path.replace("\\", "/"), text, indexed_at):
+                con.execute(
+                    """
+                    INSERT INTO chunks(
+                        path, chunk_index, heading_path, start_line, end_line,
+                        token_estimate, sha256, indexed_at, content
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        chunk["path"],
+                        chunk["chunk_index"],
+                        chunk["heading_path"],
+                        chunk["start_line"],
+                        chunk["end_line"],
+                        chunk["token_estimate"],
+                        chunk["sha256"],
+                        chunk["indexed_at"],
+                        chunk["content"],
+                    ),
+                )
+                chunk_count += 1
             indexed += 1
 
         if fts:
             con.execute("INSERT INTO files_fts(files_fts) VALUES('rebuild')")
 
-        set_meta(con, "schema_version", "1")
+        set_meta(con, "schema_version", "2")
         set_meta(con, "indexed_at", indexed_at)
         set_meta(con, "repo_root", str(root))
         set_meta(con, "source", "git ls-files tracked text files")
         set_meta(con, "fts5", "enabled" if fts else "disabled")
+        set_meta(con, "chunking", f"markdown-aware max_chars={MAX_CHUNK_CHARS}")
+        set_meta(con, "chunk_count", str(chunk_count))
 
     print(f"Indexed files: {indexed}")
+    print(f"Chunks: {chunk_count}")
     print(f"Skipped files: {skipped}")
     print(f"Database: {db_path}")
     print(f"FTS5: {'enabled' if fts else 'disabled'}")
@@ -246,9 +364,11 @@ def stats(args: argparse.Namespace) -> int:
     con = connect(db_path)
     ensure_schema(con)
     file_count = con.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+    chunk_count = con.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
     total_bytes = con.execute("SELECT COALESCE(SUM(size_bytes), 0) FROM files").fetchone()[0]
     indexed_at = con.execute("SELECT value FROM meta WHERE key = 'indexed_at'").fetchone()
     print(f"Files: {file_count}")
+    print(f"Chunks: {chunk_count}")
     print(f"Source bytes: {total_bytes}")
     print(f"Database bytes: {db_path.stat().st_size}")
     print(f"Indexed at: {indexed_at['value'] if indexed_at else 'unknown'}")
@@ -382,6 +502,44 @@ def export_notes(args: argparse.Namespace) -> int:
     return 0
 
 
+def export_chunks(args: argparse.Namespace) -> int:
+    root = repo_root()
+    db_path = (root / args.db).resolve()
+    output_path = (root / args.output).resolve()
+    if not db_path.exists():
+        print(f"No database found at {db_path}")
+        return 1
+    con = connect(db_path)
+    ensure_schema(con)
+    rows = con.execute(
+        """
+        SELECT path, chunk_index, heading_path, start_line, end_line,
+               token_estimate, sha256, content
+        FROM chunks
+        ORDER BY path, chunk_index
+        """
+    ).fetchall()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="\n") as handle:
+        for row in rows:
+            source_id = f"{row['path']}#chunk-{row['chunk_index']}"
+            record = {
+                "source_id": source_id,
+                "path": row["path"],
+                "chunk_index": row["chunk_index"],
+                "heading_path": [p for p in row["heading_path"].split(" > ") if p],
+                "start_line": row["start_line"],
+                "end_line": row["end_line"],
+                "token_estimate": row["token_estimate"],
+                "sha256": row["sha256"],
+                "text": row["content"],
+            }
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+    print(f"Exported chunks: {len(rows)}")
+    print(f"Output: {output_path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, default=DEFAULT_DB, help="SQLite database path.")
@@ -409,6 +567,10 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser = sub.add_parser("export-notes", help="Export local notes to Markdown.")
     export_parser.add_argument("--output", type=Path, default=Path("tools/project-memory/NOTES.md"))
     export_parser.set_defaults(func=export_notes)
+
+    chunks_parser = sub.add_parser("export-chunks", help="Export indexed chunks to JSONL for embeddings.")
+    chunks_parser.add_argument("--output", type=Path, default=Path("tools/project-memory/semantic-corpus.jsonl"))
+    chunks_parser.set_defaults(func=export_chunks)
 
     return parser
 
