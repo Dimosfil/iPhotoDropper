@@ -41,6 +41,11 @@
   workflow contract, implementation plan, sprint breakdown, task breakdown,
   definitions of done, and verification connected. Tasks do not replace the
   feature contract.
+- Treat project memory as the portable product specification layer. For
+  non-trivial feature, business-rule, data-model, integration, or architecture
+  work, update the relevant project-memory specification in the same scoped
+  change. Write it so another agent could rebuild the behavior on a different
+  language, framework, or platform. A handoff summary is not a substitute.
 
 ## Git
 
@@ -192,6 +197,19 @@ or:
 - Use the instruction kit as a token-economy and RAG-startup layer: restore only
   task-relevant context from local instructions, summaries, targeted searches,
   and project memory instead of broad repository reads or large outputs.
+- Use structured memory such as SQLite for deterministic facts and graphs:
+  paths, symbols, exact references, identifiers, asset links, dependency edges,
+  commands, failures, and evidence-backed notes. Use vector retrieval only as a
+  second semantic layer over curated notes, summaries, architecture docs, and
+  selected chunks. Verify current source files before editing because generated
+  memory indexes can be stale.
+- Use Context7, when configured or explicitly requested, only for current public
+  library, framework, SDK, and API documentation. Do not send secrets, private
+  source code, business rules, user data, production data, local paths, or
+  project-memory contents to Context7 or similar external doc services unless
+  explicit private-source configuration exists and the user approves the exact
+  scope. Prefer project-local instructions and service guide/contract endpoints
+  for project behavior.
 - Keep `gi` command responses scoped to the shared instruction-kit command. Do
   not resume an older product task after a `gi` command unless the user
   explicitly asks.
@@ -211,12 +229,37 @@ or:
   print a full diff, create a summary file, commit, or push for this command.
 - Treat `gi тест-план` and `gi test plan` as requests to inspect local project
   test commands and produce a compact verification plan for the current feature,
-  bug fix, or release check. Plan first; run checks only when the user asks or
-  when the current task already requires verification.
+  bug fix, or release check. Verify exact commands, flags, ports, routes,
+  health endpoints, payload fields, and environment variables from current
+  project-local instructions, runbooks, manifests, config entry points, or source
+  code before recommending or running checks. Plan first; run checks only when
+  the user asks or when the current task already requires verification.
+- Treat `gi first test`, `gi первый тест`, and `ги первый тест` as first-launch
+  verification requests. Read documented reset/run/test instructions first,
+  clear only documented project-owned first-run state, and ask one concise
+  question if reset paths or commands are missing.
 - Treat `gi install`, `gi инсталл`, `ги инсталл`, and clear typo variants as
   build-and-installer requests. The task is complete only after the packaging
   command runs and a current installer artifact is produced or explicitly
   verified; restore/build/test alone are preliminary checks.
+- Treat `gi rebuild` and `ги ребилд` as project/application rebuild requests,
+  not tests-only, dependency restore, RAG-only rebuild, or a combined
+  project-plus-RAG rebuild. Use documented project-local build/rebuild
+  contracts.
+- Treat `gi tools rebuild`, `gi rag rebuild`, `ги тулс ребилд`, and
+  `ги раг ребилд` as GI/RAG tooling rebuild requests. Full tooling rebuilds
+  require immediate explicit confirmation after listing source groups, privacy
+  exclusions, generated paths, node commands, status checks, and dependencies.
+  Node forms such as `sql`, `chunks`, `vector`, `manifest`, and `evals` use only
+  documented commands from `tools/project-memory/rag-system.json`, runbooks, or
+  local helper scripts.
+- Keep `gi sql`, `gi sqlite`, and `gi vector` inspection-only: report readiness,
+  counts, staleness, and recommendations without deploying services, installing
+  heavy dependencies, uploading data, or indexing private sources by default.
+- Treat `gi help`, `gi хелп`, `ги help`, `ги хелп`, `gi commands`,
+  `gi команды`, and `ги команды` as read-only command index requests. Show a
+  compact command list without startup restore, task execution, service calls,
+  file mutation, or old-work resumption.
 - Treat a first message that points to a shared instruction library as an
   instruction bootstrap, not as a request to add that library as a dependency.
 - If the user asks to update from a shared instruction library and this project
@@ -227,6 +270,11 @@ or:
   normal successful updates. Apply the update, then report a compact summary
   with versions, migration counts/IDs, changed files, checks, commit/push
   result, and blockers if any.
+- During `gi обновить`, inspect newly applied migrations for RAG-impacting
+  changes to source rules, chunking, embedding metadata, SQLite/vector schemas,
+  retrieval adapters, or project-memory index scripts. Compare migration ids
+  with rebuild state in `tools/project-memory/rag-system.json`, report stale
+  nodes, and ask before any full GI/RAG tooling rebuild.
 - For web applications, assume the user will inspect the UI manually. Do not
   open, browse, screenshot, or visually inspect the UI automatically unless the
   user explicitly asks for that.

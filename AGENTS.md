@@ -36,6 +36,23 @@ notes, old refactoring phases, or local commits ahead of a remote as the next
 action. Mention them only as compact context when relevant, then ask for the
 user's current task instead of offering to continue, run, push, or finish them.
 
+Treat `init <source>`, `РёРЅРёС‚ <source>`, `РёРЅРёС†РёР°Р»РёР·РёСЂСѓР№ <source>`, and
+`РёРЅРёС‚ РїСЂР°РІРёР»Р° <source>` as shared-instruction bootstrap/startup requests when
+`<source>` points to `https://github.com/Dimosfil/general-instructions.git`, the
+current shared-instruction checkout/cache, `GENERAL_INSTRUCTIONS_HOME`, or
+another known `general-instructions` source. Read existing instruction files and
+follow GI bootstrap rules; never reinterpret these forms as `git init`, folder
+creation, OpenCode setup, project creation, `npm init`, or `python -m venv`
+unless the user explicitly names that action.
+
+Treat `gi help`, `gi С…РµР»Рї`, `РіРё help`, `РіРё С…РµР»Рї`, `gi commands`,
+`gi РєРѕРјР°РЅРґС‹`, and `РіРё РєРѕРјР°РЅРґС‹` as requests to show a compact list of available
+GI chat commands with short descriptions. Read the local command index such as
+`COMMANDS.md` when present, prefer project-local command additions over the
+shared baseline, and keep the answer informational: do not run startup restore,
+resume old work, call task managers, mutate files, or execute the listed
+commands unless the user asks for a specific command next.
+
 The copied instruction kit is a token-economy and RAG-startup layer for this
 project. Use it to restore only the needed context from local instructions,
 handoff summaries, targeted searches, and project memory instead of reading the
@@ -50,6 +67,36 @@ Before enabling vector retrieval, prepare semantic-ready chunks, embedding
 metadata, and a small eval set. Keep generated embedding corpora and vector
 indexes ignored when rebuildable, and do not mix embeddings from different
 models in one collection version.
+
+Use structured memory such as SQLite for deterministic project facts and graphs:
+file paths, symbols, exact references, GUIDs, generated identifiers, asset links,
+reverse dependencies, commands, failures, and evidence-backed notes. Use vector
+retrieval only as a second semantic layer for conceptual questions over curated
+notes, summaries, architecture docs, and selected chunks. Do not replace exact
+graph queries with embeddings, and verify current source files before editing
+because memory indexes can be stale.
+
+Use Context7, when configured or explicitly requested, as an external current
+documentation retrieval layer for public library, framework, SDK, and API docs.
+Treat it as documentation lookup, not project memory, service discovery, task
+management, or an authoritative source for this project's current code. Prefer
+project-local instructions and service guide/contract endpoints for project
+behavior, and prefer official OpenAI documentation workflows for OpenAI product
+questions. Do not send secrets, credentials, private source code, private
+business rules, user data, or project-memory contents to Context7 or similar
+external doc services unless the project has explicit private-source
+configuration and the user approves that scope. Pin exact library IDs and
+versions when known, and verify current local source files before editing.
+
+Treat `tools/summary/` as compact handoff state for the current or recent chat.
+Treat `tools/project-memory/` as durable product and project knowledge. For every
+non-trivial feature, business workflow, or architecture decision, keep
+platform-neutral project-memory specifications that describe the behavior,
+business rules, algorithms, state transitions, failure handling, verification,
+and current implementation map. Write them so another agent could rebuild the
+project on a different language, platform, or framework and preserve the same
+behavior. Split specifications by meaning instead of one giant file. Keep major
+rewrites in `tools/project-memory/architecture-migrations.md`.
 
 Keep GI agent-runtime neutral. These instructions are for any compatible AI
 agent or assistant, not only Codex. Mention Codex only when a rule is about a
@@ -70,6 +117,17 @@ tools/project-memory/
 
 Important findings should be written there or in a handoff summary, not only
 left in chat.
+
+Durable product behavior, business rules, feature algorithms, architecture
+decisions, integration contracts, and current implementation maps belong in
+project memory. Handoff summaries belong in `tools/summary/` and are not a
+substitute for project-memory specifications.
+
+For non-trivial feature, business-rule, data-model, integration, or architecture
+work, update the relevant project-memory specification in the same scoped change
+as the implementation. Keep specifications split by meaning, such as feature
+specs, business-rule docs, data-model docs, integration contracts, and
+architecture migrations.
 
 For analysis, refactoring, migration, or multi-step implementation tasks, create
 or update a concise checklist in `tools/project-memory/pending-tasks.md` or a
@@ -258,6 +316,22 @@ Inspect logs:
   Do not replace manager API work with `project-memory`, pending-task notes,
   guessed commands, raw intake receipts, local checklists, or "tell me the exact
   command" fallback.
+- Treat `gi test plan`, `gi тест-план`, and equivalent wording as requests to
+  inspect local project test commands and produce a compact verification plan
+  for the current feature, bug fix, or release check. Before recommending or
+  running checks, verify exact commands, flags, ports, routes, health endpoints,
+  payload fields, and environment variables from current project-local
+  instructions, runbooks, manifests, config entry points, or source code.
+  Handoff summaries, task notes, screenshots, and old chat examples are status
+  evidence, not authoritative command contracts.
+- Treat `gi first test`, `gi РїРµСЂРІС‹Р№ С‚РµСЃС‚`, and `РіРё РїРµСЂРІС‹Р№ С‚РµСЃС‚` as first-launch
+  verification requests. Read project-local run, cleanup, cache reset, and test
+  instructions before clearing anything. Reset only documented project-owned app
+  cache, generated state, temporary first-run profiles, and rebuildable local app
+  settings. Do not delete user documents, production data, secrets, credentials,
+  external service data, shared system caches, sibling projects, or arbitrary
+  user-home folders. If exact reset paths, keys, scripts, or commands are
+  missing, ask one concise clarification question instead of guessing.
 - Treat `gi config service on`, `gi config service off`, `РіРё РєРѕРЅС„РёРі СЃРµСЂРІРёСЃ on`,
   and `РіРё РєРѕРЅС„РёРі СЃРµСЂРІРёСЃ off` as requests to set the current application's
   project-local config-service self-registration flag. `on` means the app
@@ -271,13 +345,20 @@ Inspect logs:
 - For web-facing applications that expose a port, HTTP API, web UI, task-manager
   service, or local daemon endpoint, require a live config-service config check
   on every process startup before publishing or refreshing the app's own service
-  record. On startup, query the app's own `service_id`; if no record exists,
-  create one with the current port and documented endpoints, and if the record
-  exists but the port or endpoints changed, refresh it. Desktop apps, CLI tools,
-  libraries, scripts, and other non-web applications must not query or publish
-  to config-service during normal startup unless local instructions explicitly
-  define a discoverable web/API runtime. Use cached config only as an explicit
-  degraded-startup fallback documented by local run instructions.
+  record. On startup, query the app's own `service_id`. If the record exists,
+  bind only the port recorded in config-service and use config-service records
+  for neighboring service endpoints. If no record exists and project-local
+  self-registration is `on`, read the config-service guide and contract, list
+  current service records, choose a port that is both free locally and absent
+  from config-service, bind it, verify local health, and create or update the
+  record through the documented config-service operation. If the record is
+  missing and self-registration is `off`, or config-service is unavailable or
+  lacks a documented registration contract, stop startup with a clear blocker.
+  Do not invent registration payloads, write directly to config-service storage,
+  reuse stale local runtime config, or bind fallback ports. Desktop apps, CLI
+  tools, libraries, scripts, and other non-web applications must not query or
+  publish to config-service during normal startup unless local instructions
+  explicitly define a discoverable web/API runtime.
 - Treat `gi ftp`, `РіРё С„С‚Рї`, `gi ftp push`, `РіРё С„С‚Рї РїСѓС€`, `gi upload ftp`,
   `gi deploy ftp`, and `gi Р·Р°Р»РµР№ РЅР° С„С‚Рї` as requests to upload this project's
   configured build output to FTP, FTPS, or SFTP. Treat `gi ftp config`,
@@ -304,6 +385,12 @@ Inspect logs:
   start or restart the current application using project-local run instructions.
   If the app is running, restart it; if it is not running, start it. Launch in
   the background so focus does not jump away from the user's current window.
+  After launch, wait briefly and verify the documented startup success signal:
+  a still-running expected process, visible desktop window when applicable,
+  health/discovery endpoint for web/API apps, and relevant startup or crash logs
+  when documented. Do not report reboot success from a PID alone. If no expected
+  window or health signal appears, the process exits, or a new startup traceback
+  is present, report the reboot as failed or unverified with concrete evidence.
 - Treat `gi install`, `gi инсталл`, `ги инсталл`, and clear typo variants as
   requests to build the current project and produce an installer. Read local
   build/package instructions, resolve the application version from project
@@ -311,6 +398,30 @@ Inspect logs:
   current installer artifact. `restore`, dependency install, build, and test
   checks are prerequisites only; do not report `gi install` complete or the
   project installed/restored when only those checks ran.
+- Treat `gi rebuild` and `РіРё СЂРµР±РёР»Рґ` as requests to rebuild the current
+  project/application artifact using project-local build or rebuild
+  instructions, manifests, scripts, and packaging metadata. Do not treat it as
+  dependency restore, tests-only verification, a RAG-only rebuild, or a combined
+  project-plus-RAG rebuild. If no project rebuild contract exists, ask one short
+  clarification question instead of inventing a command.
+- Treat `gi tools rebuild`, `gi rag rebuild`, `РіРё С‚СѓР»СЃ СЂРµР±РёР»Рґ`, and
+  `РіРё СЂР°Рі СЂРµР±РёР»Рґ` as full GI/RAG tooling rebuild commands. Treat node forms such
+  as `gi tools rebuild sql`, `gi rag rebuild chunks`, `gi tools rebuild vector`,
+  `gi rag rebuild manifest`, and `gi tools rebuild evals` as scoped node rebuild
+  commands. Full GI/RAG rebuild requires explicit confirmation immediately
+  before execution after listing source groups, privacy exclusions, generated
+  paths that may be replaced, node commands, status checks, and dependencies.
+  Use only documented project-local commands from `rag-system.json`, runbooks,
+  or helper scripts; ask one short clarification question if a rebuild node has
+  no command. `gi sql`, `gi sqlite`, and `gi vector` are inspection-only
+  diagnostic commands.
+- During `gi РѕР±РЅРѕРІРёС‚СЊ`, inspect newly applied migrations for RAG-impacting
+  changes to source rules, chunking, embedding metadata, SQLite/vector schemas,
+  retrieval adapters, or project-memory index scripts. Compare the migration id
+  with `tools/project-memory/rag-system.json` rebuild state, report stale nodes,
+  and ask before a full rebuild or run/offer the smallest documented node
+  rebuild for narrow changes. Do not mark rebuild state current until rebuild
+  and readback/status checks succeed.
 - Treat nested checkouts, vendored repositories, cloned examples, and
   third-party source trees as separate scope. Do not inspect them as part of the
   main project unless the user explicitly asks, the task is about that nested
