@@ -1,4 +1,5 @@
 using iPhotoDropper.Infrastructure.Services;
+using iPhotoDropper.App.Logging;
 using iPhotoDropper.App.ViewModels;
 using iPhotoDropper.App.Views;
 using iPhotoDropper.Core.Interfaces;
@@ -54,11 +55,14 @@ public partial class App : Application
 
     private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
     {
+        var appPaths = new AppPaths();
+        services.AddSingleton(appPaths);
+
         services.AddLogging(builder => builder.AddSimpleConsole(opts =>
         {
             opts.SingleLine = true;
             opts.TimestampFormat = "HH:mm:ss ";
-        }));
+        }).AddProvider(new DailyFileLoggerProvider(appPaths.LogFolder)));
 
         var fallbackMockRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
@@ -83,11 +87,8 @@ public partial class App : Application
         services.AddSingleton<IHashService, HashService>();
         services.AddSingleton<ITransferStateStore>(sp =>
         {
-            var basePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "iPhotoDropper",
-                "state");
-            return new JsonTransferStateStore(Path.Combine(basePath, "transfer-state.json"));
+            var paths = sp.GetRequiredService<AppPaths>();
+            return new JsonTransferStateStore(Path.Combine(paths.StateFolder, "transfer-state.json"));
         });
         services.AddSingleton<ITransferService, TransferService>();
 

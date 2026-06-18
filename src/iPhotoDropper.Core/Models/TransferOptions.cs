@@ -11,6 +11,7 @@ public sealed class TransferOptions
     public int RetryCount { get; set; } = 2;
     public int MaxParallelTransfers { get; set; } = 1;
     public int RetryBaseDelayMs { get; set; } = 1000;
+    public int NoProgressTimeoutMs { get; set; } = 60_000;
     public ExistingFileAction DefaultExistingFileAction { get; set; } = ExistingFileAction.Skip;
     public Func<ExistingFileConflict, CancellationToken, Task<ExistingFileAction>>? ExistingFileConflictHandler { get; set; }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using iPhotoDropper.App.ViewModels;
 using iPhotoDropper.Core.Models;
 using Microsoft.UI.Windowing;
@@ -89,6 +90,18 @@ public sealed partial class MainWindow : Window
             await ViewModel.ScanAsync();
         }
 
+        if (!ViewModel.ImportCommand.CanExecute(null))
+        {
+            UpdateUi();
+            return;
+        }
+
+        if (!await ConfirmImportAsync())
+        {
+            UpdateUi();
+            return;
+        }
+
         await ViewModel.ImportAsync();
         _lastDestinationFilesRefresh = DateTimeOffset.MinValue;
         UpdateUi();
@@ -110,6 +123,16 @@ public sealed partial class MainWindow : Window
     {
         ViewModel.CancelTransfer();
         UpdateUi();
+    }
+
+    private void OnOpenLogFolderClick(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ViewModel.LogFolderPath);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = ViewModel.LogFolderPath,
+            UseShellExecute = true
+        });
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e)
@@ -170,6 +193,7 @@ public sealed partial class MainWindow : Window
         {
             DeviceStatusText.Text = ViewModel.DeviceStatus;
             DeviceDetailsTextBlock.Text = RenderDeviceDetails();
+            LogFolderTextBlock.Text = $"Папка логов: {ViewModel.LogFolderPath}";
             DestinationTextBlock.Text = $"Папка: {ViewModel.DestinationFolder}";
             SelectionSummaryTextBlock.Text = ViewModel.MediaItems.Count == 0
                 ? "Медиа еще не просканированы"
@@ -195,11 +219,14 @@ public sealed partial class MainWindow : Window
             OrganizeByDateCheckBox.IsChecked = ViewModel.OrganizeByDate;
             SetTextIfChanged(MaxSizeTextBox, ViewModel.MaxFileSizeMbText ?? string.Empty);
 
-            SetTextIfChanged(MediaFilesTextBox, RenderMedia());
-            RefreshDestinationFilesIfNeeded();
-            SetTextIfChanged(DestinationFilesTextBox, _destinationFilesText);
-            SetTextIfChanged(ScanLogTextBox, RenderLog());
-            ScanLogTextBox.SelectionStart = ScanLogTextBox.Text.Length;
+            if (!ViewModel.IsBusy)
+            {
+                SetTextIfChanged(MediaFilesTextBox, RenderMedia());
+                RefreshDestinationFilesIfNeeded();
+                SetTextIfChanged(DestinationFilesTextBox, _destinationFilesText);
+                SetTextIfChanged(ScanLogTextBox, RenderLog());
+                ScanLogTextBox.SelectionStart = ScanLogTextBox.Text.Length;
+            }
 
             var importControlsEnabled = ViewModel.IsDeviceReady && !ViewModel.IsBusy;
             var scanButtonText = ViewModel.IsScanning ? "Сканируем..." : "Показать медиа";
@@ -290,6 +317,62 @@ public sealed partial class MainWindow : Window
 
         using var registration = token.Register(() => completion.TrySetCanceled(token));
         return await completion.Task;
+    }
+
+    private async Task<bool> ConfirmImportAsync()
+    {
+        var selectedBytes = ViewModel.SelectedBytes;
+        var freeSpace = TryGetAvailableFreeSpace(ViewModel.DestinationFolder);
+        var freeSpaceText = freeSpace is null ? "не удалось определить" : FormatBytes(freeSpace.Value);
+        var hasEnoughSpace = freeSpace is null || freeSpace.Value >= selectedBytes;
+        var spaceStatus = hasEnoughSpace
+            ? "Места достаточно для выбранных файлов."
+            : "Свободного места меньше, чем требуется для выбранных файлов.";
+
+        var details = new TextBlock
+        {
+            Text =
+                $"Папка: {ViewModel.DestinationFolder}\n" +
+                $"Выбрано: {ViewModel.SelectedCount} файлов\n" +
+                $"Требуется: {FormatBytes(selectedBytes)}\n" +
+                $"Свободно на диске: {freeSpaceText}\n\n" +
+                spaceStatus,
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Root.XamlRoot,
+            Title = "Начать импорт?",
+            Content = details,
+            PrimaryButtonText = "Да",
+            SecondaryButtonText = "Нет",
+            DefaultButton = ContentDialogButton.Secondary,
+            IsPrimaryButtonEnabled = hasEnoughSpace
+        };
+
+        var result = await dialog.ShowAsync();
+        return result == ContentDialogResult.Primary;
+    }
+
+    private static long? TryGetAvailableFreeSpace(string destinationFolder)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(destinationFolder);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return null;
+            }
+
+            var drive = new DriveInfo(root);
+            return drive.IsReady ? drive.AvailableFreeSpace : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string RenderDeviceDetails()

@@ -86,6 +86,7 @@ public sealed class TransferService : ITransferService
             var totalBytes = filteredItems.Sum(x => Math.Max(0, x.SizeBytes));
             result.SelectedItems = filteredItems.Length;
             result.SelectedBytes = totalBytes;
+            EnsureDestinationHasFreeSpace(options.DestinationFolder, totalBytes);
             var copied = 0;
             var skipped = 0;
             var failed = 0;
@@ -410,7 +411,7 @@ public sealed class TransferService : ITransferService
             try
             {
                 await using var source = await _photoLibraryService.OpenMediaStreamAsync(device, item, token);
-                await CopyWithProgressAsync(source, tempPath, item, baseProgress, attempt + 1, progress, token);
+                await CopyWithProgressAsync(source, tempPath, item, baseProgress, attempt + 1, options, progress, token);
                 return true;
             }
             catch (OperationCanceledException)
@@ -431,6 +432,11 @@ public sealed class TransferService : ITransferService
             }
         }
 
+        if (lastError is TimeoutException)
+        {
+            throw lastError;
+        }
+
         _logger.LogWarning(lastError, "Неуспешный импорт после {Attempts} попыток: {FileName}", maxAttempts + 1, item.FileName);
         return false;
     }
@@ -441,6 +447,7 @@ public sealed class TransferService : ITransferService
         MediaItem item,
         TransferProgress baseProgress,
         int attempt,
+        TransferOptions options,
         IProgress<TransferProgress>? progress,
         CancellationToken token)
     {
@@ -457,7 +464,12 @@ public sealed class TransferService : ITransferService
             token.ThrowIfCancellationRequested();
             _pauseSignal.Wait(token);
 
-            var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), token);
+            var read = await ReadWithNoProgressTimeoutAsync(
+                source,
+                buffer.AsMemory(0, buffer.Length),
+                item,
+                ResolveNoProgressTimeout(options),
+                token);
             if (read <= 0)
             {
                 break;
@@ -496,6 +508,52 @@ public sealed class TransferService : ITransferService
         }
 
         await destination.FlushAsync(token);
+    }
+
+    private static TimeSpan ResolveNoProgressTimeout(TransferOptions options)
+    {
+        var timeoutMs = options.NoProgressTimeoutMs <= 0
+            ? 60_000
+            : Math.Max(100, options.NoProgressTimeoutMs);
+
+        return TimeSpan.FromMilliseconds(timeoutMs);
+    }
+
+    private static async ValueTask<int> ReadWithNoProgressTimeoutAsync(
+        Stream source,
+        Memory<byte> buffer,
+        MediaItem item,
+        TimeSpan timeout,
+        CancellationToken token)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var readTask = source.ReadAsync(buffer, token).AsTask();
+        var timeoutTask = Task.Delay(timeout, timeoutCts.Token);
+        var completedTask = await Task.WhenAny(readTask, timeoutTask);
+        if (completedTask == readTask)
+        {
+            timeoutCts.Cancel();
+            return await readTask;
+        }
+
+        token.ThrowIfCancellationRequested();
+
+        try
+        {
+            source.Dispose();
+        }
+        catch
+        {
+            // Best-effort abort for native MTP streams that stopped producing data.
+        }
+
+        _ = readTask.ContinueWith(
+            task => _ = task.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+
+        throw new TimeoutException($"No read progress for {item.FileName} during {timeout.TotalSeconds:0} seconds.");
     }
 
     private static long ResolveCurrentItemBytesTotal(Stream source, MediaItem item)
@@ -622,6 +680,33 @@ public sealed class TransferService : ITransferService
         {
             throw new IOException($"Недостаточно места на диске. Нужен дополнительный резерв: {FormatBytes(neededBytes)}");
         }
+    }
+
+    private static void EnsureDestinationHasFreeSpace(string destinationFolder, long neededBytes)
+    {
+        if (neededBytes <= 0)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(destinationFolder);
+        var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(destinationFolder))!);
+        if (!drive.IsReady)
+        {
+            return;
+        }
+
+        const long reserveBytes = 512L * 1024 * 1024;
+        var requiredBytes = neededBytes > long.MaxValue - reserveBytes
+            ? long.MaxValue
+            : neededBytes + reserveBytes;
+        if (drive.AvailableFreeSpace >= requiredBytes)
+        {
+            return;
+        }
+
+        throw new IOException(
+            $"Недостаточно места на диске для импорта. Нужно {FormatBytes(neededBytes)} плюс резерв {FormatBytes(reserveBytes)}, доступно {FormatBytes(drive.AvailableFreeSpace)}.");
     }
 
     private static string ResolveFreePath(string folder, string fileName)

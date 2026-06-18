@@ -8,9 +8,13 @@ tools/project-memory/chroma/
 tools/project-memory/embedding-cache/
 tools/project-memory/semantic-corpus*.jsonl
 tools/project-memory/__pycache__/
+tools/summary/*_AGENT_WORK_SUMMARY.md
 tools/summary/*.tmp
 tools/deploy/ftp.local.json
 *.log
+
+# IDE workspace files
+.idea/
 
 # .NET build outputs
 **/bin/

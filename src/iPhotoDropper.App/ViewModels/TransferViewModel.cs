@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using iPhotoDropper.App;
 using iPhotoDropper.Core.Interfaces;
 using iPhotoDropper.Core.Events;
 using iPhotoDropper.Core.Models;
@@ -16,10 +17,12 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     private readonly IPhotoLibraryService _libraryService;
     private readonly ITransferService _transferService;
     private readonly ILogger<TransferViewModel> _logger;
+    private readonly AppPaths _appPaths;
     private readonly DispatcherQueue _dispatcher;
 
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _importCts;
+    private readonly ManualResetEventSlim _scanPauseSignal = new(true);
     private int _progressRunVersion;
 
     private DeviceInfo? _selectedDevice;
@@ -44,11 +47,13 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         IUsbDeviceService usbService,
         IPhotoLibraryService libraryService,
         ITransferService transferService,
+        AppPaths appPaths,
         ILogger<TransferViewModel> logger)
     {
         _usbService = usbService;
         _libraryService = libraryService;
         _transferService = transferService;
+        _appPaths = appPaths;
         _logger = logger;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         _destinationFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "iPhotoDropper");
@@ -79,6 +84,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
     public ObservableCollection<DeviceInfo> Devices { get; }
     public ObservableCollection<TransferItemViewModel> MediaItems { get; }
     public ObservableCollection<string> LogLines { get; }
+    public string LogFolderPath => _appPaths.LogFolder;
     public Func<ExistingFileConflict, CancellationToken, Task<ExistingFileAction>>? ExistingFileConflictResolver { get; set; }
 
     public DeviceInfo? SelectedDevice
@@ -326,6 +332,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
         IsBusy = true;
         IsScanning = true;
+        _scanPauseSignal.Set();
         ResetDeviceSessionState($"Сканируем: {selectedDevice.DisplayName}");
         AddLog("scan: старт");
         AddLog($"scan: устройство = {selectedDevice.DisplayName}, transport = {selectedDevice.Transport ?? "USB"}, trusted = {selectedDevice.IsTrusted}");
@@ -347,6 +354,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         long filteredBytes = 0;
         var itemProgress = new SynchronousProgress<MediaItem>(item =>
         {
+            _scanPauseSignal.Wait(scanCts.Token);
             if (!MatchesScanFilters(item, includePhotos, includeVideos, maxBytes))
             {
                 return;
@@ -395,6 +403,11 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         }
         finally
         {
+            _scanPauseSignal.Set();
+            if (_scanCts == scanCts)
+            {
+                _scanCts = null;
+            }
             IsScanning = false;
             IsBusy = false;
         }
@@ -540,6 +553,9 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             Interlocked.Increment(ref _progressRunVersion);
+            ProgressText = "Ошибка импорта";
+            LastReport = "Импорт не запущен или прерван ошибкой.";
+            ImportSummary = ex.Message;
             AddLog($"import:error {ex.Message}");
             _logger.LogError(ex, "Import failed");
         }
@@ -563,6 +579,14 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     public void PauseTransfer()
     {
+        if (IsScanning)
+        {
+            _scanPauseSignal.Reset();
+            IsPaused = true;
+            ProgressText = "Приостановлено";
+            return;
+        }
+
         _transferService.Pause();
         IsPaused = true;
         ProgressText = "Приостановлено";
@@ -570,6 +594,14 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     public void ResumeTransfer()
     {
+        if (IsScanning)
+        {
+            _scanPauseSignal.Set();
+            IsPaused = false;
+            ProgressText = "Работа продолжается";
+            return;
+        }
+
         _transferService.Resume();
         IsPaused = false;
         ProgressText = "Работа продолжается";
@@ -577,6 +609,15 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     public void CancelTransfer()
     {
+        if (IsScanning)
+        {
+            _scanCts?.Cancel();
+            _scanPauseSignal.Set();
+            IsPaused = false;
+            ProgressText = "Отменено пользователем";
+            return;
+        }
+
         _transferService.Cancel();
         _importCts?.Cancel();
         IsPaused = false;
@@ -783,6 +824,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
         Interlocked.Increment(ref _progressRunVersion);
         _scanCts?.Cancel();
         _importCts?.Cancel();
+        _scanPauseSignal.Set();
         IsPaused = false;
         OverallProgress = 0;
         CurrentFileProgress = 0;
@@ -823,6 +865,7 @@ public sealed class TransferViewModel : INotifyPropertyChanged
 
     private void AddLog(string message)
     {
+        _logger.LogInformation("{LogMessage}", message);
         LogLines.Insert(0, $"{DateTimeOffset.Now:HH:mm:ss} | {message}");
     }
 

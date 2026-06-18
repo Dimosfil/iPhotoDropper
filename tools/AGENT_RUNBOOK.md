@@ -32,13 +32,13 @@ dotnet build .\iPhotoDropper.sln
 ## Installer
 
 ```powershell
-.\tools\package\build-installer.ps1 -Version 0.1.0
+.\tools\package\build-installer.ps1
 ```
 
 Output:
 
 ```text
-artifacts\installer\iPhotoDropper-Setup-0.1.0.exe
+artifacts\installer\iPhotoDropper-Setup-0.1.2.exe
 ```
 
 ## Smoke Check
@@ -62,6 +62,7 @@ Expected result:
 ## Logs
 
 ```powershell
+Get-ChildItem "$env:LOCALAPPDATA\iPhotoDropper\logs"
 Get-ChildItem "$env:LOCALAPPDATA\iPhotoDropper\state"
 Get-ChildItem "$env:USERPROFILE\Pictures\iPhotoDropper" -Recurse
 ```

@@ -159,6 +159,23 @@ Goal: Rework the WinUI shell toward an iTunes-style desktop utility: quiet toolb
 - [x] Add regression coverage for preserved destination timestamps.
 - [x] Verify build/tests after the timestamp preservation change.
 
+## Persistent app logs
+
+- [x] Write application/runtime log messages to a durable local log folder.
+- [x] Show the log folder path in the WinUI app.
+- [x] Verify build/tests after logging changes.
+
+## Import confirmation
+
+- [x] Show a Yes/No confirmation dialog before import starts.
+- [x] Include destination free space and required selected media size in the dialog.
+- [x] Verify build/tests after confirmation changes.
+
+## Open log folder button
+
+- [x] Add a UI button near the log folder path that opens the logs folder in Explorer.
+- [x] Verify build/tests after the log-folder button change.
+
 ## MTP scan root fallback
 
 - [x] Do not stop iPhone scanning at the first existing `DCIM` folder.
@@ -171,3 +188,28 @@ Goal: Rework the WinUI shell toward an iTunes-style desktop utility: quiet toolb
 - [x] Show scan progress indicators while media discovery is running.
 - [x] Disable scan/refresh buttons immediately during scanning.
 - [x] Verify build/tests and restart the app.
+
+## Installer publish resources
+
+- [x] Ensure `gi install` creates a runnable publish output before compiling the installer.
+- [x] Copy required WinUI `.xbf` and app `.pri` resources into publish output when `dotnet publish --output` omits them.
+- [x] Rebuild installer and verify publish/installed launch.
+
+## Import hang prevention
+
+- [x] Keep import progress UI responsive during large real-device transfers.
+- [x] Avoid rebuilding large media/log/destination text panes on every copy progress tick.
+- [x] Add a per-file no-progress read watchdog so a stuck MTP stream fails the file and continues.
+- [x] Add regression coverage and rebuild installer.
+
+## Destination free-space preflight
+
+- [x] Check destination disk free space before starting import.
+- [x] Show a clear not-enough-space error instead of silently hanging or copying until failure.
+- [x] Add regression coverage, bump patch version, and rebuild installer.
+
+## Scan pause/cancel controls
+
+- [x] Route Pause/Resume/Cancel to the active scan when media discovery is running.
+- [x] Wake paused scans before cancellation so the scan task can observe its cancellation token.
+- [x] Verify build/tests after scan control routing.

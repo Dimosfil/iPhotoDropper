@@ -7,6 +7,7 @@
         x:Name="Root"
         MinWidth="980"
         MinHeight="680"
+        RequestedTheme="Light"
         Background="#F5F5F7">
         <Grid.Resources>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F5F5F7" />
@@ -36,6 +37,7 @@
             <Style x:Key="PaneTextBoxStyle" TargetType="TextBox">
                 <Setter Property="AcceptsReturn" Value="True" />
                 <Setter Property="Background" Value="#FBFBFD" />
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                 <Setter Property="BorderBrush" Value="#DADAE0" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="7" />
@@ -46,6 +48,11 @@
                 <Setter Property="TextWrapping" Value="NoWrap" />
                 <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
                 <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            </Style>
+
+            <Style x:Key="FilterCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                <Setter Property="FontSize" Value="14" />
             </Style>
         </Grid.Resources>
         <Grid.RowDefinitions>
@@ -152,10 +159,10 @@
                             FontSize="12"
                             FontWeight="SemiBold"
                             Foreground="{StaticResource SecondaryTextBrush}" />
-                        <CheckBox x:Name="PhotosCheckBox" Content="Фото" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
-                        <CheckBox x:Name="VideosCheckBox" Content="Видео" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
-                        <CheckBox x:Name="CopyOnlyNewCheckBox" Content="Только новые" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
-                        <CheckBox x:Name="OrganizeByDateCheckBox" Content="Папки по датам" Checked="OnFilterChanged" Unchecked="OnFilterChanged" />
+                        <CheckBox x:Name="PhotosCheckBox" Content="Фото" Checked="OnFilterChanged" Unchecked="OnFilterChanged" Style="{StaticResource FilterCheckBoxStyle}" />
+                        <CheckBox x:Name="VideosCheckBox" Content="Видео" Checked="OnFilterChanged" Unchecked="OnFilterChanged" Style="{StaticResource FilterCheckBoxStyle}" />
+                        <CheckBox x:Name="CopyOnlyNewCheckBox" Content="Только новые" Checked="OnFilterChanged" Unchecked="OnFilterChanged" Style="{StaticResource FilterCheckBoxStyle}" />
+                        <CheckBox x:Name="OrganizeByDateCheckBox" Content="Папки по датам" Checked="OnFilterChanged" Unchecked="OnFilterChanged" Style="{StaticResource FilterCheckBoxStyle}" />
                         <StackPanel Spacing="5">
                             <TextBlock Text="Макс. размер, MB" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
                             <TextBox
@@ -163,6 +170,7 @@
                                 PlaceholderText="без лимита"
                                 TextChanged="OnMaxSizeTextChanged"
                                 Background="#FFFFFF"
+                                Foreground="{StaticResource PrimaryTextBrush}"
                                 BorderBrush="#D8D8DE"
                                 CornerRadius="7"
                                 Padding="8,5" />
@@ -425,12 +433,31 @@
                     <Grid RowSpacing="8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="Журнал" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                        <Grid Grid.Row="1" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="LogFolderTextBlock"
+                                FontSize="12"
+                                Foreground="{StaticResource SecondaryTextBrush}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+                            <Button
+                                Grid.Column="1"
+                                MinHeight="28"
+                                Padding="10,4"
+                                Click="OnOpenLogFolderClick"
+                                Content="Открыть" />
+                        </Grid>
                         <TextBox
                             x:Name="ScanLogTextBox"
-                            Grid.Row="1"
+                            Grid.Row="2"
                             MinHeight="96"
                             Style="{StaticResource PaneTextBoxStyle}" />
                     </Grid>

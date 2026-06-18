@@ -237,6 +237,37 @@ public sealed class TransferServiceSmokeTests
     }
 
     [Fact]
+    public async Task ImportFailsBeforeCopyWhenDestinationHasNotEnoughFreeSpace()
+    {
+        using var workspace = TempWorkspace.Create();
+        var destinationRoot = workspace.CreateDirectory("imports");
+        var statePath = Path.Combine(workspace.Root, "state", "transfer-state.json");
+        var device = new DeviceInfo("mock-device", "Mock iPhone", isConnected: true, isTrusted: true);
+        var item = new MediaItem
+        {
+            DeviceId = device.DeviceId,
+            Id = "too-large-video",
+            FileName = "too-large-video.mov",
+            Kind = MediaKind.Video,
+            SizeBytes = long.MaxValue / 2,
+            CapturedAt = DateTimeOffset.UtcNow
+        };
+
+        var service = CreateTransferService(new SingleItemPhotoLibraryService(item, new byte[] { 1 }), statePath);
+        var ex = await Assert.ThrowsAsync<IOException>(() => service.ImportAsync(device, new[] { item }, new TransferOptions
+        {
+            DestinationFolder = destinationRoot,
+            IncludePhotos = true,
+            IncludeVideos = true,
+            OrganizeByDateFolders = false,
+            RetryBaseDelayMs = 1
+        }));
+
+        Assert.Contains("Недостаточно места", ex.Message);
+        Assert.Empty(Directory.EnumerateFiles(destinationRoot, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public async Task PauseResumeAndCancelTransitionsDoNotCrashActiveTransfer()
     {
         using var workspace = TempWorkspace.Create();
@@ -278,6 +309,42 @@ public sealed class TransferServiceSmokeTests
 
         Assert.True(result.WasCanceled);
         Assert.Equal(TransferOperationState.Canceled, result.State);
+        Assert.Empty(Directory.EnumerateFiles(destinationRoot, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task StuckSourceReadFailsCurrentFileAndCleansTempFile()
+    {
+        using var workspace = TempWorkspace.Create();
+        var destinationRoot = workspace.CreateDirectory("imports");
+        var statePath = Path.Combine(workspace.Root, "state", "transfer-state.json");
+        var device = new DeviceInfo("mock-device", "Mock iPhone", isConnected: true, isTrusted: true);
+        var item = new MediaItem
+        {
+            DeviceId = device.DeviceId,
+            Id = "stuck-video",
+            FileName = "stuck-video.mov",
+            Kind = MediaKind.Video,
+            SizeBytes = 128 * 1024,
+            CapturedAt = DateTimeOffset.UtcNow
+        };
+
+        var service = CreateTransferService(new HangingPhotoLibraryService(item), statePath);
+        var result = await service.ImportAsync(device, new[] { item }, new TransferOptions
+        {
+            DestinationFolder = destinationRoot,
+            IncludePhotos = true,
+            IncludeVideos = true,
+            OrganizeByDateFolders = false,
+            RetryCount = 0,
+            RetryBaseDelayMs = 1,
+            NoProgressTimeoutMs = 100
+        });
+
+        Assert.Equal(TransferOperationState.Completed, result.State);
+        Assert.Equal(0, result.CopiedCount);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Contains("No read progress", result.Items.Single().ErrorMessage);
         Assert.Empty(Directory.EnumerateFiles(destinationRoot, "*.tmp", SearchOption.AllDirectories));
     }
 
@@ -425,6 +492,86 @@ public sealed class TransferServiceSmokeTests
         public override void Write(byte[] buffer, int offset, int count)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class HangingPhotoLibraryService : IPhotoLibraryService
+    {
+        private readonly MediaItem _item;
+
+        public HangingPhotoLibraryService(MediaItem item)
+        {
+            _item = item;
+        }
+
+        public Task<IReadOnlyList<MediaItem>> ScanMediaAsync(
+            DeviceInfo device,
+            CancellationToken cancellationToken = default,
+            IProgress<MediaItem>? itemDiscovered = null)
+        {
+            itemDiscovered?.Report(_item);
+            return Task.FromResult<IReadOnlyList<MediaItem>>(new[] { _item });
+        }
+
+        public Task<Stream> OpenMediaStreamAsync(DeviceInfo device, MediaItem mediaItem, CancellationToken cancellationToken = default)
+        {
+            Stream stream = new HangingReadStream();
+            return Task.FromResult(stream);
+        }
+    }
+
+    private sealed class HangingReadStream : Stream
+    {
+        private readonly TaskCompletionSource<int> _disposed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => 0;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<int>(_disposed.Task.WaitAsync(cancellationToken));
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _disposed.TrySetException(new ObjectDisposedException(nameof(HangingReadStream)));
+            }
+
+            base.Dispose(disposing);
         }
     }
 
