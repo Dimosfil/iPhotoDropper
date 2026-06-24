@@ -28,6 +28,7 @@ $languageAliases[(-join ((0x0440,0x0443,0x0441,0x0441,0x043A,0x0438,0x0439) | Fo
 $languageAliases[(-join ((0x0438,0x0441,0x043F,0x0430,0x043D,0x0441,0x043A,0x0438,0x0439) | ForEach-Object { [char]$_ }))] = "Spanish"
 $languageAliases[(-join ((0x043D,0x0435,0x043C,0x0435,0x0446,0x043A,0x0438,0x0439) | ForEach-Object { [char]$_ }))] = "German"
 $languageAliases[(-join ((0x0444,0x0440,0x0430,0x043D,0x0446,0x0443,0x0437,0x0441,0x043A,0x0438,0x0439) | ForEach-Object { [char]$_ }))] = "French"
+$defaultLanguageOrder = @("English", "Russian")
 
 function Select-LanguageOrder {
     param(
@@ -38,12 +39,12 @@ function Select-LanguageOrder {
 
     $default = @($DefaultSelected | Where-Object { $available -contains $_ } | Select-Object -Unique)
     if ($default.Count -eq 0) {
-        $default = @("English")
+        $default = @($defaultLanguageOrder)
     }
 
     Write-Host ""
     Write-Host $Title
-    Write-Host "Enter numbers or names in priority order, for example: 2 1"
+    Write-Host "Enter numbers or names in priority order, for example: 1 2"
     Write-Host ""
 
     for ($i = 0; $i -lt $available.Count; $i++) {
@@ -82,8 +83,8 @@ function Select-LanguageOrder {
     return $selected
 }
 
-$defaultProject = @("English")
-$defaultTasks = @("English")
+$defaultProject = @($defaultLanguageOrder)
+$defaultTasks = @($defaultLanguageOrder)
 if (Test-Path -LiteralPath $SystemOutputPath) {
     try {
         $existing = Get-Content -LiteralPath $SystemOutputPath -Raw | ConvertFrom-Json
@@ -109,7 +110,7 @@ if (Test-Path -LiteralPath $SystemOutputPath) {
     }
 }
 
-$defaultCommits = @("English")
+$defaultCommits = @($defaultLanguageOrder)
 if (Test-Path -LiteralPath $GitOutputPath) {
     try {
         $existingGit = Get-Content -LiteralPath $GitOutputPath -Raw | ConvertFrom-Json

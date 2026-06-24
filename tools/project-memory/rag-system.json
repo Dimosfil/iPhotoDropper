@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "project_id": "iPhotoDropper",
+  "project_id": "replace-with-stable-project-slug",
   "mode": "hybrid-ready",
   "source_groups": [
     {
@@ -9,6 +9,17 @@
         "AGENTS.md",
         "tools/AGENT_RUNBOOK.md",
         "tools/AGENT_WORKING_AGREEMENTS.md"
+      ],
+      "trust": "project-local",
+      "include": true
+    },
+    {
+      "id": "project-documentation",
+      "paths": [
+        "README.md",
+        "docs/*.md",
+        "docs/**/*.md",
+        "tools/AGENT_RUNBOOK.md"
       ],
       "trust": "project-local",
       "include": true
@@ -45,6 +56,7 @@
     "reviewable_export": "tools/project-memory/NOTES.md",
     "logical_indexes": {
       "code": "current implementation facts: paths, symbols, commands, schemas, errors, dependency edges",
+      "documentation": "project orientation: overview, user-visible functionality, stack, commands, operations, troubleshooting",
       "specifications": "portable product behavior: business rules, feature algorithms, workflow contracts, architecture migrations"
     }
   },
@@ -126,8 +138,8 @@
         "status_command": "uv run --with chromadb python .\\tools\\project-memory\\build_chroma_index.py status"
       },
       "evals": {
-        "command": "",
-        "status_command": ""
+        "command": "python .\\tools\\project-memory\\rag_check.py --skip-vector run",
+        "status_command": "python .\\tools\\project-memory\\rag_check.py --skip-vector health"
       }
     },
     "state": {
