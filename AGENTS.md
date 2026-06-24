@@ -77,11 +77,13 @@ Use the RAG startup flow and retrieve only task-relevant context.
   and shared-rule propagation: `patterns/AGENTS_RUNTIME/01-purpose.md`
 - Repository map: `patterns/AGENTS_RUNTIME/02-repository-map.md`
 - Rule precedence and scope arbitration: `patterns/AGENTS_RUNTIME/03-rule-precedence.md`
-- Authoring reusable rules, configuration boundaries, code quality, stack
-  inventory, and batch verification: `patterns/AGENTS_RUNTIME/04-content-and-authoring.md`
+- Authoring reusable rules, configuration boundaries, code quality, project
+  info/stack inventory, and batch verification:
+  `patterns/AGENTS_RUNTIME/04-content-and-authoring.md`
 - Windows shell and networking policy: `patterns/AGENTS_RUNTIME/05-windows-command-policy.md`
-- Token economy, verification command lookup, `gi refactor`, feature contracts,
-  and large-output handling: `patterns/AGENTS_RUNTIME/06-tool-usage-and-token-economy.md`
+- Token economy, verification command lookup, `gi info`, `gi stack`,
+  `gi refactor`, feature contracts, and large-output handling:
+  `patterns/AGENTS_RUNTIME/06-tool-usage-and-token-economy.md`
 - Startup, restore, project goal, bug evidence, PDF inspection, repository
   cleanup, filesystem boundaries, and first-message handling:
   `patterns/AGENTS_RUNTIME/07-startup-and-scope.md`
